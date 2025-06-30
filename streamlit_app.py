@@ -386,6 +386,7 @@ if uploaded_file:
             phu_names.append(None)
             community_names.append(None)
             school_names.append(None)
+            enrollment_values.append(None)
             continue
             
         # Extract values using regex patterns
