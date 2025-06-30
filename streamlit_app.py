@@ -1126,6 +1126,8 @@ if uploaded_file:
 
 ### part 3----------------------------------------------------------------------------------------------------------------
 
+### part 3----------------------------------------------------------------------------------------------------------------
+
 # Chiefdoms Analysis by District
     st.subheader("📊 Chiefdoms Analysis by District")
     
@@ -1265,6 +1267,230 @@ if uploaded_file:
                 st.warning(f"No chiefdom data available for {district} district")
         else:
             st.warning(f"No chiefdoms found for {district} district")
+    
+    # Summary buttons section
+    st.subheader("📊 Summary Reports")
+    
+    # Create two columns for the summary buttons
+    col1, col2 = st.columns(2)
+    
+    # Button for District Summary
+    with col1:
+        district_summary_button = st.button("Show District Summary")
+    
+    # Button for Chiefdom Summary
+    with col2:
+        chiefdom_summary_button = st.button("Show Chiefdom Summary")
+    
+    # Display District Summary when button is clicked
+    if district_summary_button:
+        st.subheader("📈 Summary by District")
+        
+        # Create aggregation dictionary
+        agg_dict = {}
+        
+        # Add enrollment columns to aggregation
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
+            
+            if total_col in extracted_df.columns:
+                agg_dict[total_col] = "sum"
+            if boys_col in extracted_df.columns:
+                agg_dict[boys_col] = "sum"
+            if girls_col in extracted_df.columns:
+                agg_dict[girls_col] = "sum"
+        
+        # Group by District and aggregate
+        district_summary = extracted_df.groupby("District").agg(agg_dict).reset_index()
+        
+        # Calculate total enrollment
+        district_summary["Total Enrollment"] = 0
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            if total_col in district_summary.columns:
+                district_summary["Total Enrollment"] += district_summary[total_col]
+        
+        # Display summary table
+        st.dataframe(district_summary)
+        
+        # Download button for district summary
+        district_csv = district_summary.to_csv(index=False)
+        st.download_button(
+            label="📥 Download District Summary as CSV",
+            data=district_csv,
+            file_name="district_summary.csv",
+            mime="text/csv"
+        )
+        
+        # Create a bar chart for district summary
+        fig, ax = plt.subplots(figsize=(12, 8))
+        district_summary.plot(kind="bar", x="District", y="Total Enrollment", ax=ax, color="blue")
+        ax.set_title("📊 Total Enrollment by District")
+        ax.set_xlabel("")
+        ax.set_ylabel("Number of Students")
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    # Display Chiefdom Summary when button is clicked
+    if chiefdom_summary_button:
+        st.subheader("📈 Summary by Chiefdom")
+        
+        # Create aggregation dictionary
+        agg_dict = {}
+        
+        # Add enrollment columns to aggregation
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
+            
+            if total_col in extracted_df.columns:
+                agg_dict[total_col] = "sum"
+            if boys_col in extracted_df.columns:
+                agg_dict[boys_col] = "sum"
+            if girls_col in extracted_df.columns:
+                agg_dict[girls_col] = "sum"
+        
+        # Group by District and Chiefdom and aggregate
+        chiefdom_summary = extracted_df.groupby(["District", "Chiefdom"]).agg(agg_dict).reset_index()
+        
+        # Calculate total enrollment
+        chiefdom_summary["Total Enrollment"] = 0
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            if total_col in chiefdom_summary.columns:
+                chiefdom_summary["Total Enrollment"] += chiefdom_summary[total_col]
+        
+        # Display summary table
+        st.dataframe(chiefdom_summary)
+        
+        # Download button for chiefdom summary
+        chiefdom_csv = chiefdom_summary.to_csv(index=False)
+        st.download_button(
+            label="📥 Download Chiefdom Summary as CSV",
+            data=chiefdom_csv,
+            file_name="chiefdom_summary.csv",
+            mime="text/csv"
+        )
+        
+        # Create a temporary label for the chart
+        chiefdom_summary['Label'] = chiefdom_summary['District'] + '\n' + chiefdom_summary['Chiefdom']
+        
+        # Create a bar chart for chiefdom summary
+        fig, ax = plt.subplots(figsize=(14, 10))
+        chiefdom_summary.plot(kind="barh", x="Label", y="Total Enrollment", ax=ax, color="blue")
+        ax.set_title("📊 Total Enrollment by District and Chiefdom")
+        ax.set_ylabel("")
+        ax.set_xlabel("Number of Students")
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    # Visualization and filtering section - UPDATED
+    st.subheader("🔍 Detailed Data Filtering and Visualization")
+    
+    # Check if data is available after filtering
+    if not filtered_df.empty:
+        st.write(f"### Filtered Data - {len(filtered_df)} records")
+        st.dataframe(filtered_df)
+        
+        # Download button for filtered data
+        filtered_csv = filtered_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download Filtered Data as CSV",
+            data=filtered_csv,
+            file_name="filtered_data.csv",
+            mime="text/csv"
+        )
+        
+        # Define the hierarchy levels to include in the summary
+        group_columns = hierarchy[grouping_selection]
+        
+        # Create aggregation dictionary for enrollment data
+        agg_dict = {}
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
+            
+            if total_col in filtered_df.columns:
+                agg_dict[total_col] = "sum"
+            if boys_col in filtered_df.columns:
+                agg_dict[boys_col] = "sum"
+            if girls_col in filtered_df.columns:
+                agg_dict[girls_col] = "sum"
+        
+        # Group by the selected hierarchical columns
+        if agg_dict:  # Only proceed if we have columns to aggregate
+            grouped_data = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
+            
+            # Calculate total enrollment CORRECTLY
+            grouped_data["Total Enrollment"] = 0
+            for class_num in range(1, 6):
+                total_col = f"How many pupils are enrolled in Class {class_num}?"
+                if total_col in grouped_data.columns:
+                    grouped_data["Total Enrollment"] += grouped_data[total_col].fillna(0)
+            
+            # Calculate total ITNs
+            grouped_data["Total ITNs"] = 0
+            for class_num in range(1, 6):
+                boys_col = f"How many boys in Class {class_num} received ITNs?"
+                girls_col = f"How many girls in Class {class_num} received ITNs?"
+                if boys_col in grouped_data.columns:
+                    grouped_data["Total ITNs"] += grouped_data[boys_col].fillna(0)
+                if girls_col in grouped_data.columns:
+                    grouped_data["Total ITNs"] += grouped_data[girls_col].fillna(0)
+            
+            # Summary Table
+            st.subheader("📊 Detailed Summary Table")
+            
+            # Display key metrics
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Enrollment", f"{int(grouped_data['Total Enrollment'].sum()):,}")
+            with col2:
+                st.metric("Total ITNs", f"{int(grouped_data['Total ITNs'].sum()):,}")
+            
+            # Display the summary table
+            display_columns = group_columns + ["Total Enrollment", "Total ITNs"]
+            st.dataframe(grouped_data[display_columns])
+            
+            # Create a temporary group column for the chart
+            if len(group_columns) == 1:
+                grouped_data['Group'] = grouped_data[group_columns[0]].astype(str)
+            else:
+                grouped_data['Group'] = grouped_data[group_columns].apply(lambda row: ' - '.join(row.astype(str)), axis=1)
+            
+            # Create a bar chart ONLY if we have enrollment data
+            if grouped_data["Total Enrollment"].sum() > 0:
+                fig, ax = plt.subplots(figsize=(12, 8))
+                
+                # Sort by Total Enrollment for better visualization
+                grouped_data_sorted = grouped_data.sort_values("Total Enrollment", ascending=True)
+                
+                bars = ax.barh(grouped_data_sorted['Group'], grouped_data_sorted["Total Enrollment"], 
+                              color="#47B5FF", edgecolor='navy', linewidth=1.5)
+                ax.set_title(f"Total Enrollment by {grouping_selection}", fontsize=16, fontweight='bold')
+                ax.set_xlabel("Number of Students", fontsize=12, fontweight='bold')
+                ax.set_ylabel(grouping_selection, fontsize=12, fontweight='bold')
+                
+                # Add value labels on bars
+                for i, v in enumerate(grouped_data_sorted["Total Enrollment"]):
+                    if v > 0:
+                        ax.text(v + max(grouped_data_sorted["Total Enrollment"]) * 0.01, i, 
+                               f'{int(v):,}', va='center', fontweight='bold', fontsize=10)
+                
+                ax.grid(axis='x', alpha=0.3, linestyle='--')
+                plt.tight_layout()
+                st.pyplot(fig)
+            else:
+                st.warning(f"No enrollment data available for the selected {grouping_selection} filters.")
+        else:
+            st.warning("No enrollment data columns found for aggregation.")
+    else:
+        st.warning("No data available for the selected filters.")
     
     # Summary buttons section
     st.subheader("📊 Summary Reports")
@@ -1561,7 +1787,6 @@ if uploaded_file:
             • Total Student Enrollment: {summaries['overall']['total_enrollment']:,}
             • Total Boys: {summaries['overall']['total_boys']:,}
             • Total Girls: {summaries['overall']['total_girls']:,}
-            • Gender Ratio (Girls:Boys): {summaries['overall']['gender_ratio']:.1f}%
             • Total ITNs Distributed: {summaries['overall']['total_itn']:,}
             • Overall Coverage Rate: {summaries['overall']['coverage']:.1f}%
             
