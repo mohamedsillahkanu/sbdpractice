@@ -950,13 +950,13 @@ if uploaded_file:
         # Sum enrollments and boys/girls by class using correct columns
         for class_num in range(1, 6):
             # Use "Number of enrollments in class X" for total students
-            enrollment_col = f"Number of enrollments in class {class_num}"
+            enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
             if enrollment_col in district_data.columns:
                 total_enrollment += int(district_data[enrollment_col].fillna(0).sum())
             
             # Use boys + girls for total ITNs (actual beneficiaries)
-            boys_col = f"Number of boys in class {class_num}"
-            girls_col = f"Number of girls in class {class_num}"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
             if boys_col in district_data.columns:
                 total_boys += int(district_data[boys_col].fillna(0).sum())
             if girls_col in district_data.columns:
@@ -1152,13 +1152,13 @@ if uploaded_file:
                 
                 for class_num in range(1, 6):
                     # Use "Number of enrollments in class X" for total students
-                    enrollment_col = f"Number of enrollments in class {class_num}"
+                    enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
                     if enrollment_col in chiefdom_data.columns:
                         total_enrollment += int(chiefdom_data[enrollment_col].fillna(0).sum())
                     
                     # Use boys + girls for total ITNs (actual beneficiaries)
-                    boys_col = f"Number of boys in class {class_num}"
-                    girls_col = f"Number of girls in class {class_num}"
+                    boys_col = f"How many boys in Class {class_num} received ITNs?"
+                    girls_col = f"How many girls in Class {class_num} received ITNs?"
                     if boys_col in chiefdom_data.columns:
                         total_boys += int(chiefdom_data[boys_col].fillna(0).sum())
                     if girls_col in chiefdom_data.columns:
@@ -1289,9 +1289,9 @@ if uploaded_file:
         
         # Add enrollment columns to aggregation
         for class_num in range(1, 6):
-            total_col = f"Number of enrollments in class {class_num}"
-            boys_col = f"Number of boys in class {class_num}"
-            girls_col = f"Number of girls in class {class_num}"
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
             
             if total_col in extracted_df.columns:
                 agg_dict[total_col] = "sum"
@@ -1306,7 +1306,7 @@ if uploaded_file:
         # Calculate total enrollment
         district_summary["Total Enrollment"] = 0
         for class_num in range(1, 6):
-            total_col = f"Number of enrollments in class {class_num}"
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
             if total_col in district_summary.columns:
                 district_summary["Total Enrollment"] += district_summary[total_col]
         
@@ -1341,9 +1341,9 @@ if uploaded_file:
         
         # Add enrollment columns to aggregation
         for class_num in range(1, 6):
-            total_col = f"Number of enrollments in class {class_num}"
-            boys_col = f"Number of boys in class {class_num}"
-            girls_col = f"Number of girls in class {class_num}"
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
             
             if total_col in extracted_df.columns:
                 agg_dict[total_col] = "sum"
@@ -1358,7 +1358,7 @@ if uploaded_file:
         # Calculate total enrollment
         chiefdom_summary["Total Enrollment"] = 0
         for class_num in range(1, 6):
-            total_col = f"Number of enrollments in class {class_num}"
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
             if total_col in chiefdom_summary.columns:
                 chiefdom_summary["Total Enrollment"] += chiefdom_summary[total_col]
         
@@ -1410,8 +1410,8 @@ if uploaded_file:
         agg_dict = {}
         for class_num in range(1, 6):
             total_col = f"Number of enrollments in class {class_num}"
-            boys_col = f"Number of boys in class {class_num}"
-            girls_col = f"Number of girls in class {class_num}"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
             
             if total_col in filtered_df.columns:
                 agg_dict[total_col] = "sum"
