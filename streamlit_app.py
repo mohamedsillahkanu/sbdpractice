@@ -409,7 +409,7 @@ st.markdown("---")  # Add a horizontal line separator
 st.title("📊 School Based Distribution of ITNs in Sierra Leone 2025")
 
 # Upload file
-uploaded_file = "latest_sbd1_06_10_2025 (1).xlsx"
+uploaded_file = "sbd first_submission_clean.xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
