@@ -47,3 +47,4 @@ xlsxwriter
 streamlit-option-menu
 folium
 streamlit-folium 
+reportlab
