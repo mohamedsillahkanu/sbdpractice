@@ -2236,7 +2236,7 @@ if uploaded_file:
                 st.error("❌ PDF generation requires reportlab library. Please install it using: pip install reportlab")
             except Exception as e:
                 st.error(f"❌ Error generating PDF: {str(e)}")
-                        os.remove(temp_file)
+                os.remove(temp_file)
                 os.rmdir(temp_dir)
                 
                 # Get PDF data
