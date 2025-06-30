@@ -159,10 +159,49 @@ def save_map_as_png(fig, filename_prefix):
         st.error(f"Error saving map: {e}")
         return None
 
-# Function to generate comprehensive summaries
+# Updated column mapping based on actual column names
+COLUMN_MAPPING = {
+    'enrollment_cols': {
+        1: "How many pupils are enrolled in Class 1?",
+        2: "How many pupils are enrolled in Class 2?",
+        3: "How many pupils are enrolled in Class 3?",
+        4: "How many pupils are enrolled in Class 4?",
+        5: "How many pupils are enrolled in Class 5?"
+    },
+    'boys_cols': {
+        1: "How many boys are in Class 1?",
+        2: "How many boys are in Class 2?",
+        3: "How many boys are in Class 3?",
+        4: "How many boys are in Class 4?",
+        5: "How many boys are in Class 5?"
+    },
+    'girls_cols': {
+        1: "How many girls are in Class 1?",
+        2: "How many girls are in Class 2?",
+        3: "How many girls are in Class 3?",
+        4: "How many girls are in Class 4?",
+        5: "How many girls are in Class 5?"
+    },
+    'boys_itn_cols': {
+        1: "How many boys in Class 1 received ITNs?",
+        2: "How many boys in Class 2 received ITNs?",
+        3: "How many boys in Class 3 received ITNs?",
+        4: "How many boys in Class 4 received ITNs?",
+        5: "How many boys in Class 5 received ITNs?"
+    },
+    'girls_itn_cols': {
+        1: "How many girls in Class 1 received ITNs?",
+        2: "How many girls in Class 2 received ITNs?",
+        3: "How many girls in Class 3 received ITNs?",
+        4: "How many girls in Class 4 received ITNs?",
+        5: "How many girls in Class 5 received ITNs?"
+    }
+}
+
+# Function to generate comprehensive summaries with updated column names
 @st.cache_data
 def generate_summaries(df):
-    """Generate District, Chiefdom, and Gender summaries"""
+    """Generate District, Chiefdom, and Gender summaries using actual column names"""
     summaries = {}
     
     # Overall Summary
@@ -173,26 +212,36 @@ def generate_summaries(df):
         'total_boys': 0,
         'total_girls': 0,
         'total_enrollment': 0,
+        'total_itn_boys': 0,
+        'total_itn_girls': 0,
         'total_itn': 0
     }
     
-    # Calculate totals using the correct columns
+    # Calculate totals using the updated column names
     for class_num in range(1, 6):
-        # Total enrollment from "Number of enrollments in class X"
-        enrollment_col = f"Number of enrollments in class {class_num}"
-        if enrollment_col in df.columns:
+        # Total enrollment
+        enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+        if enrollment_col and enrollment_col in df.columns:
             overall_summary['total_enrollment'] += int(df[enrollment_col].fillna(0).sum())
         
-        # Boys and girls for gender analysis AND ITN calculation
-        boys_col = f"Number of boys in class {class_num}"
-        girls_col = f"Number of girls in class {class_num}"
-        if boys_col in df.columns:
+        # Boys and girls totals
+        boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+        girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
+        if boys_col and boys_col in df.columns:
             overall_summary['total_boys'] += int(df[boys_col].fillna(0).sum())
-        if girls_col in df.columns:
+        if girls_col and girls_col in df.columns:
             overall_summary['total_girls'] += int(df[girls_col].fillna(0).sum())
+        
+        # ITNs distributed to boys and girls
+        boys_itn_col = COLUMN_MAPPING['boys_itn_cols'].get(class_num)
+        girls_itn_col = COLUMN_MAPPING['girls_itn_cols'].get(class_num)
+        if boys_itn_col and boys_itn_col in df.columns:
+            overall_summary['total_itn_boys'] += int(df[boys_itn_col].fillna(0).sum())
+        if girls_itn_col and girls_itn_col in df.columns:
+            overall_summary['total_itn_girls'] += int(df[girls_itn_col].fillna(0).sum())
     
-    # Total ITNs = boys + girls (actual beneficiaries)
-    overall_summary['total_itn'] = overall_summary['total_boys'] + overall_summary['total_girls']
+    # Total ITNs distributed
+    overall_summary['total_itn'] = overall_summary['total_itn_boys'] + overall_summary['total_itn_girls']
     
     # Calculate coverage
     overall_summary['coverage'] = (overall_summary['total_itn'] / overall_summary['total_enrollment'] * 100) if overall_summary['total_enrollment'] > 0 else 0
@@ -213,25 +262,35 @@ def generate_summaries(df):
                 'boys': 0,
                 'girls': 0,
                 'enrollment': 0,
+                'itn_boys': 0,
+                'itn_girls': 0,
                 'itn': 0
             }
             
             for class_num in range(1, 6):
-                # Total enrollment from "Number of enrollments in class X"
-                enrollment_col = f"Number of enrollments in class {class_num}"
-                if enrollment_col in district_data.columns:
+                # Total enrollment
+                enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                if enrollment_col and enrollment_col in district_data.columns:
                     district_stats['enrollment'] += int(district_data[enrollment_col].fillna(0).sum())
                 
-                # Boys and girls for gender analysis AND ITN calculation
-                boys_col = f"Number of boys in class {class_num}"
-                girls_col = f"Number of girls in class {class_num}"
-                if boys_col in district_data.columns:
+                # Boys and girls
+                boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+                girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
+                if boys_col and boys_col in district_data.columns:
                     district_stats['boys'] += int(district_data[boys_col].fillna(0).sum())
-                if girls_col in district_data.columns:
+                if girls_col and girls_col in district_data.columns:
                     district_stats['girls'] += int(district_data[girls_col].fillna(0).sum())
+                
+                # ITNs distributed
+                boys_itn_col = COLUMN_MAPPING['boys_itn_cols'].get(class_num)
+                girls_itn_col = COLUMN_MAPPING['girls_itn_cols'].get(class_num)
+                if boys_itn_col and boys_itn_col in district_data.columns:
+                    district_stats['itn_boys'] += int(district_data[boys_itn_col].fillna(0).sum())
+                if girls_itn_col and girls_itn_col in district_data.columns:
+                    district_stats['itn_girls'] += int(district_data[girls_itn_col].fillna(0).sum())
             
-            # Total ITNs = boys + girls (actual beneficiaries)
-            district_stats['itn'] = district_stats['boys'] + district_stats['girls']
+            # Total ITNs distributed
+            district_stats['itn'] = district_stats['itn_boys'] + district_stats['itn_girls']
             
             # Calculate coverage
             district_stats['coverage'] = (district_stats['itn'] / district_stats['enrollment'] * 100) if district_stats['enrollment'] > 0 else 0
@@ -255,25 +314,35 @@ def generate_summaries(df):
                     'boys': 0,
                     'girls': 0,
                     'enrollment': 0,
+                    'itn_boys': 0,
+                    'itn_girls': 0,
                     'itn': 0
                 }
                 
                 for class_num in range(1, 6):
-                    # Total enrollment from "Number of enrollments in class X"
-                    enrollment_col = f"Number of enrollments in class {class_num}"
-                    if enrollment_col in chiefdom_data.columns:
+                    # Total enrollment
+                    enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                    if enrollment_col and enrollment_col in chiefdom_data.columns:
                         chiefdom_stats['enrollment'] += int(chiefdom_data[enrollment_col].fillna(0).sum())
                     
-                    # Boys and girls for gender analysis AND ITN calculation
-                    boys_col = f"Number of boys in class {class_num}"
-                    girls_col = f"Number of girls in class {class_num}"
-                    if boys_col in chiefdom_data.columns:
+                    # Boys and girls
+                    boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+                    girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
+                    if boys_col and boys_col in chiefdom_data.columns:
                         chiefdom_stats['boys'] += int(chiefdom_data[boys_col].fillna(0).sum())
-                    if girls_col in chiefdom_data.columns:
+                    if girls_col and girls_col in chiefdom_data.columns:
                         chiefdom_stats['girls'] += int(chiefdom_data[girls_col].fillna(0).sum())
+                    
+                    # ITNs distributed
+                    boys_itn_col = COLUMN_MAPPING['boys_itn_cols'].get(class_num)
+                    girls_itn_col = COLUMN_MAPPING['girls_itn_cols'].get(class_num)
+                    if boys_itn_col and boys_itn_col in chiefdom_data.columns:
+                        chiefdom_stats['itn_boys'] += int(chiefdom_data[boys_itn_col].fillna(0).sum())
+                    if girls_itn_col and girls_itn_col in chiefdom_data.columns:
+                        chiefdom_stats['itn_girls'] += int(chiefdom_data[girls_itn_col].fillna(0).sum())
                 
-                # Total ITNs = boys + girls (actual beneficiaries)
-                chiefdom_stats['itn'] = chiefdom_stats['boys'] + chiefdom_stats['girls']
+                # Total ITNs distributed
+                chiefdom_stats['itn'] = chiefdom_stats['itn_boys'] + chiefdom_stats['itn_girls']
                 
                 # Calculate coverage
                 chiefdom_stats['coverage'] = (chiefdom_stats['itn'] / chiefdom_stats['enrollment'] * 100) if chiefdom_stats['enrollment'] > 0 else 0
@@ -627,7 +696,7 @@ def main():
         with col2:
             st.metric("Total Students", f"{summaries['overall']['total_enrollment']:,}")
         with col3:
-            st.metric("Total ITNs", f"{summaries['overall']['total_itn']:,}")
+            st.metric("Total ITNs Distributed", f"{summaries['overall']['total_itn']:,}")
         with col4:
             st.metric("Coverage", f"{summaries['overall']['coverage']:.1f}%")
 
@@ -640,6 +709,227 @@ def main():
             st.metric("Boys", f"{summaries['overall']['total_boys']:,}")
         with col8:
             st.metric("Girls", f"{summaries['overall']['total_girls']:,}")
+
+        # Enrollment Comparison Analysis (2024 vs 2025)
+        st.subheader("📈 Enrollment Comparison: 2024 vs 2025")
+        
+        enrollment_comparison = []
+        
+        if 'District' in extracted_df.columns:
+            for district in extracted_df['District'].dropna().unique():
+                district_data = extracted_df[extracted_df['District'] == district]
+                
+                # 2024 enrollment from "Enrollment" column
+                enrollment_2024 = 0
+                if 'Enrollment' in district_data.columns:
+                    for val in district_data['Enrollment'].fillna(0):
+                        try:
+                            # Handle string values and commas
+                            val_str = str(val).replace(',', '').strip()
+                            if val_str and val_str != '0' and val_str != 'nan':
+                                enrollment_2024 += float(val_str)
+                        except (ValueError, TypeError):
+                            continue
+                
+                # 2025 enrollment from sum of all class enrollments
+                enrollment_2025 = 0
+                for class_num in range(1, 6):
+                    enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                    if enrollment_col and enrollment_col in district_data.columns:
+                        enrollment_2025 += int(district_data[enrollment_col].fillna(0).sum())
+                
+                # Calculate change
+                change = enrollment_2025 - enrollment_2024
+                change_percent = (change / enrollment_2024 * 100) if enrollment_2024 > 0 else 0
+                
+                enrollment_comparison.append({
+                    'District': district,
+                    'Enrollment_2024': int(enrollment_2024),
+                    'Enrollment_2025': enrollment_2025,
+                    'Change': change,
+                    'Change_Percent': change_percent
+                })
+        
+        if enrollment_comparison:
+            enrollment_df = pd.DataFrame(enrollment_comparison)
+            
+            # Display comparison table
+            st.write("**Enrollment Changes by District:**")
+            
+            # Format the dataframe for display
+            display_df = enrollment_df.copy()
+            display_df['Enrollment_2024'] = display_df['Enrollment_2024'].apply(lambda x: f"{x:,}")
+            display_df['Enrollment_2025'] = display_df['Enrollment_2025'].apply(lambda x: f"{x:,}")
+            display_df['Change'] = display_df['Change'].apply(lambda x: f"{x:+,.0f}")
+            display_df['Change_Percent'] = display_df['Change_Percent'].apply(lambda x: f"{x:+.1f}%")
+            display_df.columns = ['District', '2024 Enrollment', '2025 Enrollment', 'Change', 'Change %']
+            
+            st.dataframe(display_df, use_container_width=True)
+            
+            # Create comparison chart
+            fig_comparison, ax_comparison = plt.subplots(figsize=(16, 10))
+            
+            x = np.arange(len(enrollment_df['District']))
+            width = 0.35
+            
+            bars1 = ax_comparison.bar(x - width/2, enrollment_df['Enrollment_2024'], width, 
+                                     label='2024 Enrollment', color='#FF6B6B', edgecolor='darkred', linewidth=1)
+            bars2 = ax_comparison.bar(x + width/2, enrollment_df['Enrollment_2025'], width, 
+                                     label='2025 Current Enrollment', color='#4ECDC4', edgecolor='darkcyan', linewidth=1)
+            
+            # Customize the chart
+            ax_comparison.set_title('Enrollment Comparison: 2024 vs 2025 by District', fontsize=18, fontweight='bold', pad=20)
+            ax_comparison.set_xlabel('Districts', fontsize=14, fontweight='bold')
+            ax_comparison.set_ylabel('Number of Students', fontsize=14, fontweight='bold')
+            ax_comparison.set_xticks(x)
+            ax_comparison.set_xticklabels(enrollment_df['District'], rotation=45, ha='right')
+            ax_comparison.legend(fontsize=12)
+            ax_comparison.grid(axis='y', alpha=0.3, linestyle='--')
+            
+            # Add value labels on bars
+            for bar in bars1:
+                height = bar.get_height()
+                if height > 0:
+                    ax_comparison.annotate(f'{int(height):,}',
+                                         xy=(bar.get_x() + bar.get_width() / 2, height),
+                                         xytext=(0, 3),
+                                         textcoords="offset points",
+                                         ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
+            for bar in bars2:
+                height = bar.get_height()
+                if height > 0:
+                    ax_comparison.annotate(f'{int(height):,}',
+                                         xy=(bar.get_x() + bar.get_width() / 2, height),
+                                         xytext=(0, 3),
+                                         textcoords="offset points",
+                                         ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
+            plt.tight_layout()
+            st.pyplot(fig_comparison)
+            
+            # Save comparison chart
+            comparison_buffer = save_map_as_png(fig_comparison, "Enrollment_Comparison_2024_vs_2025")
+            if comparison_buffer:
+                map_images['enrollment_comparison'] = comparison_buffer
+            plt.close(fig_comparison)
+            
+            # Summary metrics
+            total_2024 = enrollment_df['Enrollment_2024'].sum()
+            total_2025 = enrollment_df['Enrollment_2025'].sum()
+            total_change = total_2025 - total_2024
+            total_change_percent = (total_change / total_2024 * 100) if total_2024 > 0 else 0
+            
+            st.write("**Overall Summary:**")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("2024 Total Enrollment", f"{total_2024:,}")
+            with col2:
+                st.metric("2025 Current Enrollment", f"{total_2025:,}")
+            with col3:
+                st.metric("Absolute Change", f"{total_change:+,.0f}")
+            with col4:
+                st.metric("Percentage Change", f"{total_change_percent:+.1f}%")
+            
+            # Change analysis
+            increases = enrollment_df[enrollment_df['Change'] > 0]
+            decreases = enrollment_df[enrollment_df['Change'] < 0]
+            
+            if len(increases) > 0:
+                st.success(f"📈 **Districts with Increased Enrollment:** {', '.join(increases['District'].tolist())}")
+            
+            if len(decreases) > 0:
+                st.warning(f"📉 **Districts with Decreased Enrollment:** {', '.join(decreases['District'].tolist())}")
+
+        # ITN Distribution Efficiency Analysis
+        st.subheader("🎯 ITN Distribution Efficiency Analysis")
+        
+        if 'District' in extracted_df.columns:
+            efficiency_analysis = []
+            
+            for district in extracted_df['District'].dropna().unique():
+                district_data = extracted_df[extracted_df['District'] == district]
+                
+                # Calculate ITNs received vs distributed
+                total_itns_received = 0
+                total_itns_distributed = 0
+                total_itns_remaining = 0
+                
+                if 'Number of ITNs received in the school' in district_data.columns:
+                    total_itns_received = int(district_data['Number of ITNs received in the school'].fillna(0).sum())
+                
+                if 'Total ITNs distributed' in district_data.columns:
+                    total_itns_distributed = int(district_data['Total ITNs distributed'].fillna(0).sum())
+                
+                if 'ITNs remaining' in district_data.columns:
+                    total_itns_remaining = int(district_data['ITNs remaining'].fillna(0).sum())
+                
+                # Calculate efficiency metrics
+                distribution_rate = (total_itns_distributed / total_itns_received * 100) if total_itns_received > 0 else 0
+                
+                efficiency_analysis.append({
+                    'District': district,
+                    'ITNs_Received': total_itns_received,
+                    'ITNs_Distributed': total_itns_distributed,
+                    'ITNs_Remaining': total_itns_remaining,
+                    'Distribution_Rate': distribution_rate
+                })
+            
+            if efficiency_analysis:
+                efficiency_df = pd.DataFrame(efficiency_analysis)
+                
+                # Display efficiency table
+                st.write("**ITN Distribution Efficiency by District:**")
+                
+                display_efficiency_df = efficiency_df.copy()
+                display_efficiency_df['ITNs_Received'] = display_efficiency_df['ITNs_Received'].apply(lambda x: f"{x:,}")
+                display_efficiency_df['ITNs_Distributed'] = display_efficiency_df['ITNs_Distributed'].apply(lambda x: f"{x:,}")
+                display_efficiency_df['ITNs_Remaining'] = display_efficiency_df['ITNs_Remaining'].apply(lambda x: f"{x:,}")
+                display_efficiency_df['Distribution_Rate'] = display_efficiency_df['Distribution_Rate'].apply(lambda x: f"{x:.1f}%")
+                display_efficiency_df.columns = ['District', 'ITNs Received', 'ITNs Distributed', 'ITNs Remaining', 'Distribution Rate']
+                
+                st.dataframe(display_efficiency_df, use_container_width=True)
+                
+                # Create efficiency chart
+                fig_efficiency, ax_efficiency = plt.subplots(figsize=(16, 8))
+                
+                x = np.arange(len(efficiency_df['District']))
+                width = 0.25
+                
+                bars1 = ax_efficiency.bar(x - width, efficiency_df['ITNs_Received'], width, 
+                                         label='ITNs Received', color='#3498db', edgecolor='navy', linewidth=1)
+                bars2 = ax_efficiency.bar(x, efficiency_df['ITNs_Distributed'], width, 
+                                         label='ITNs Distributed', color='#2ecc71', edgecolor='darkgreen', linewidth=1)
+                bars3 = ax_efficiency.bar(x + width, efficiency_df['ITNs_Remaining'], width, 
+                                         label='ITNs Remaining', color='#e74c3c', edgecolor='darkred', linewidth=1)
+                
+                ax_efficiency.set_title('ITN Distribution Efficiency by District', fontsize=16, fontweight='bold', pad=20)
+                ax_efficiency.set_xlabel('Districts', fontsize=12, fontweight='bold')
+                ax_efficiency.set_ylabel('Number of ITNs', fontsize=12, fontweight='bold')
+                ax_efficiency.set_xticks(x)
+                ax_efficiency.set_xticklabels(efficiency_df['District'], rotation=45, ha='right')
+                ax_efficiency.legend(fontsize=12)
+                ax_efficiency.grid(axis='y', alpha=0.3, linestyle='--')
+                
+                # Add value labels on bars
+                for bars in [bars1, bars2, bars3]:
+                    for bar in bars:
+                        height = bar.get_height()
+                        if height > 0:
+                            ax_efficiency.annotate(f'{int(height):,}',
+                                                 xy=(bar.get_x() + bar.get_width() / 2, height),
+                                                 xytext=(0, 3),
+                                                 textcoords="offset points",
+                                                 ha='center', va='bottom', fontsize=9, fontweight='bold')
+                
+                plt.tight_layout()
+                st.pyplot(fig_efficiency)
+                
+                # Save efficiency chart
+                efficiency_buffer = save_map_as_png(fig_efficiency, "ITN_Distribution_Efficiency")
+                if efficiency_buffer:
+                    map_images['itn_efficiency'] = efficiency_buffer
+                plt.close(fig_efficiency)
 
         # Gender Analysis
         st.subheader("👫 Gender Analysis")
@@ -729,173 +1019,295 @@ def main():
                 if gender_district_buffer:
                     map_images['gender_district'] = gender_district_buffer
                 plt.close(fig_gender_district)
-            else:
-                st.warning("No district gender data available for chart")
 
-        # Enrollment and ITN Distribution Analysis
-        st.subheader("📊 Enrollment and ITN Distribution Analysis")
+        # Class-wise Enrollment Analysis
+        st.subheader("📚 Class-wise Enrollment Analysis")
         
-        if 'District' in extracted_df.columns:
-            # Calculate total enrollment and ITN distribution by district
-            district_analysis = []
+        class_analysis = []
+        for class_num in range(1, 6):
+            enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+            boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+            girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
             
-            for district in extracted_df['District'].dropna().unique():
-                district_data = extracted_df[extracted_df['District'] == district]
-                
-                total_enrollment = 0
-                total_boys = 0
-                total_girls = 0
-                
-                # Sum enrollments and boys/girls by class using correct columns
-                for class_num in range(1, 6):
-                    # Use "Number of enrollments in class X" for total students
-                    enrollment_col = f"Number of enrollments in class {class_num}"
-                    if enrollment_col in district_data.columns:
-                        total_enrollment += int(district_data[enrollment_col].fillna(0).sum())
-                    
-                    # Use boys + girls for total ITNs (actual beneficiaries)
-                    boys_col = f"Number of boys in class {class_num}"
-                    girls_col = f"Number of girls in class {class_num}"
-                    if boys_col in district_data.columns:
-                        total_boys += int(district_data[boys_col].fillna(0).sum())
-                    if girls_col in district_data.columns:
-                        total_girls += int(district_data[girls_col].fillna(0).sum())
-                
-                total_itn = total_boys + total_girls  # Total ITNs = boys + girls
-                itn_remaining = max(0, total_enrollment - total_itn)  # Remaining = enrollment - distributed
-                coverage = (total_itn / total_enrollment * 100) if total_enrollment > 0 else 0
-                
-                district_analysis.append({
-                    'District': district,
-                    'Total_Enrollment': total_enrollment,
-                    'Total_ITN': total_itn,
-                    'ITN_Remaining': itn_remaining,
-                    'Coverage': coverage
-                })
+            total_enrollment = 0
+            total_boys = 0
+            total_girls = 0
             
-            if district_analysis:
-                district_df = pd.DataFrame(district_analysis)
-                
-                # Create enhanced bar chart with enrollment, distributed, and remaining
-                fig_enhanced, ax_enhanced = plt.subplots(figsize=(16, 8))
-                
-                x = np.arange(len(district_df['District']))
-                width = 0.25
-                
-                # Create bars for each category
-                bars1 = ax_enhanced.bar(x - width, district_df['Total_Enrollment'], width, 
-                                       label='Total Enrollment', color='#47B5FF', edgecolor='navy', linewidth=1)
-                bars2 = ax_enhanced.bar(x, district_df['Total_ITN'], width, 
-                                       label='ITNs Distributed (Boys + Girls)', color='lightcoral', edgecolor='darkred', linewidth=1)
-                bars3 = ax_enhanced.bar(x + width, district_df['ITN_Remaining'], width, 
-                                       label='ITNs Remaining', color='hotpink', edgecolor='darkmagenta', linewidth=1)
-                
-                # Customize the chart
-                ax_enhanced.set_title('District Analysis: Enrollment vs ITN Distribution', fontsize=16, fontweight='bold', pad=20)
-                ax_enhanced.set_xlabel('Districts', fontsize=12, fontweight='bold')
-                ax_enhanced.set_ylabel('Number of Students/ITNs', fontsize=12, fontweight='bold')
-                ax_enhanced.set_xticks(x)
-                ax_enhanced.set_xticklabels(district_df['District'], rotation=45, ha='right')
-                ax_enhanced.legend(fontsize=12)
-                ax_enhanced.grid(axis='y', alpha=0.3, linestyle='--')
-                
-                # Add value labels on bars
-                for bar in bars1:
+            if enrollment_col and enrollment_col in extracted_df.columns:
+                total_enrollment = int(extracted_df[enrollment_col].fillna(0).sum())
+            if boys_col and boys_col in extracted_df.columns:
+                total_boys = int(extracted_df[boys_col].fillna(0).sum())
+            if girls_col and girls_col in extracted_df.columns:
+                total_girls = int(extracted_df[girls_col].fillna(0).sum())
+            
+            class_analysis.append({
+                'Class': f'Class {class_num}',
+                'Total_Enrollment': total_enrollment,
+                'Boys': total_boys,
+                'Girls': total_girls
+            })
+        
+        if class_analysis:
+            class_df = pd.DataFrame(class_analysis)
+            
+            # Display class analysis table
+            st.write("**Enrollment by Class:**")
+            st.dataframe(class_df, use_container_width=True)
+            
+            # Create class-wise chart
+            fig_class, ax_class = plt.subplots(figsize=(12, 8))
+            
+            x = np.arange(len(class_df['Class']))
+            width = 0.25
+            
+            bars1 = ax_class.bar(x - width, class_df['Total_Enrollment'], width, 
+                                label='Total Enrollment', color='#8e44ad', edgecolor='purple', linewidth=1)
+            bars2 = ax_class.bar(x, class_df['Boys'], width, 
+                                label='Boys', color='#3498db', edgecolor='navy', linewidth=1)
+            bars3 = ax_class.bar(x + width, class_df['Girls'], width, 
+                                label='Girls', color='#e91e63', edgecolor='darkred', linewidth=1)
+            
+            ax_class.set_title('Class-wise Enrollment Distribution', fontsize=16, fontweight='bold', pad=20)
+            ax_class.set_xlabel('Classes', fontsize=12, fontweight='bold')
+            ax_class.set_ylabel('Number of Students', fontsize=12, fontweight='bold')
+            ax_class.set_xticks(x)
+            ax_class.set_xticklabels(class_df['Class'])
+            ax_class.legend(fontsize=12)
+            ax_class.grid(axis='y', alpha=0.3, linestyle='--')
+            
+            # Add value labels on bars
+            for bars in [bars1, bars2, bars3]:
+                for bar in bars:
                     height = bar.get_height()
                     if height > 0:
-                        ax_enhanced.annotate(f'{int(height):,}',
+                        ax_class.annotate(f'{int(height):,}',
+                                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                                        xytext=(0, 3),
+                                        textcoords="offset points",
+                                        ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
+            plt.tight_layout()
+            st.pyplot(fig_class)
+            
+            # Save class chart
+            class_buffer = save_map_as_png(fig_class, "Class_wise_Enrollment")
+            if class_buffer:
+                map_images['class_enrollment'] = class_buffer
+            plt.close(fig_class)
+
+        # ITN Distribution by Class Analysis
+        st.subheader("🏥 ITN Distribution by Class Analysis")
+        
+        itn_class_analysis = []
+        for class_num in range(1, 6):
+            boys_itn_col = COLUMN_MAPPING['boys_itn_cols'].get(class_num)
+            girls_itn_col = COLUMN_MAPPING['girls_itn_cols'].get(class_num)
+            enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+            
+            boys_itn = 0
+            girls_itn = 0
+            total_enrollment = 0
+            
+            if boys_itn_col and boys_itn_col in extracted_df.columns:
+                boys_itn = int(extracted_df[boys_itn_col].fillna(0).sum())
+            if girls_itn_col and girls_itn_col in extracted_df.columns:
+                girls_itn = int(extracted_df[girls_itn_col].fillna(0).sum())
+            if enrollment_col and enrollment_col in extracted_df.columns:
+                total_enrollment = int(extracted_df[enrollment_col].fillna(0).sum())
+            
+            total_itn = boys_itn + girls_itn
+            coverage = (total_itn / total_enrollment * 100) if total_enrollment > 0 else 0
+            
+            itn_class_analysis.append({
+                'Class': f'Class {class_num}',
+                'Boys_ITN': boys_itn,
+                'Girls_ITN': girls_itn,
+                'Total_ITN': total_itn,
+                'Total_Enrollment': total_enrollment,
+                'Coverage': coverage
+            })
+        
+        if itn_class_analysis:
+            itn_class_df = pd.DataFrame(itn_class_analysis)
+            
+            # Display ITN class analysis table
+            st.write("**ITN Distribution by Class:**")
+            display_itn_df = itn_class_df.copy()
+            display_itn_df['Coverage'] = display_itn_df['Coverage'].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(display_itn_df, use_container_width=True)
+            
+            # Create ITN class-wise chart
+            fig_itn_class, ax_itn_class = plt.subplots(figsize=(12, 8))
+            
+            x = np.arange(len(itn_class_df['Class']))
+            width = 0.35
+            
+            bars1 = ax_itn_class.bar(x - width/2, itn_class_df['Boys_ITN'], width, 
+                                    label='Boys ITNs', color='#3498db', edgecolor='navy', linewidth=1)
+            bars2 = ax_itn_class.bar(x + width/2, itn_class_df['Girls_ITN'], width, 
+                                    label='Girls ITNs', color='#e91e63', edgecolor='darkred', linewidth=1)
+            
+            ax_itn_class.set_title('ITN Distribution by Class and Gender', fontsize=16, fontweight='bold', pad=20)
+            ax_itn_class.set_xlabel('Classes', fontsize=12, fontweight='bold')
+            ax_itn_class.set_ylabel('Number of ITNs Distributed', fontsize=12, fontweight='bold')
+            ax_itn_class.set_xticks(x)
+            ax_itn_class.set_xticklabels(itn_class_df['Class'])
+            ax_itn_class.legend(fontsize=12)
+            ax_itn_class.grid(axis='y', alpha=0.3, linestyle='--')
+            
+            # Add value labels on bars
+            for bars in [bars1, bars2]:
+                for bar in bars:
+                    height = bar.get_height()
+                    if height > 0:
+                        ax_itn_class.annotate(f'{int(height):,}',
                                             xy=(bar.get_x() + bar.get_width() / 2, height),
                                             xytext=(0, 3),
                                             textcoords="offset points",
-                                            ha='center', va='bottom', fontsize=9, fontweight='bold')
-                
-                for bar in bars2:
-                    height = bar.get_height()
-                    if height > 0:
-                        ax_enhanced.annotate(f'{int(height):,}',
-                                            xy=(bar.get_x() + bar.get_width() / 2, height),
-                                            xytext=(0, 3),
-                                            textcoords="offset points",
-                                            ha='center', va='bottom', fontsize=9, fontweight='bold')
-                
-                for bar in bars3:
-                    height = bar.get_height()
-                    if height > 0:
-                        ax_enhanced.annotate(f'{int(height):,}',
-                                            xy=(bar.get_x() + bar.get_width() / 2, height),
-                                            xytext=(0, 3),
-                                            textcoords="offset points",
-                                            ha='center', va='bottom', fontsize=9, fontweight='bold')
-                
-                plt.tight_layout()
-                st.pyplot(fig_enhanced)
-                
-                # Save enhanced chart
-                enhanced_buffer = save_map_as_png(fig_enhanced, "Enhanced_Enrollment_Analysis")
-                if enhanced_buffer:
-                    map_images['enhanced_enrollment_analysis'] = enhanced_buffer
-                plt.close(fig_enhanced)
-                
-                # Create overall pie chart for enrollment vs distributed vs remaining
-                st.subheader("📊 Overall Distribution Overview (Pie Chart)")
-                
-                # Calculate overall totals
-                overall_enrollment = district_df['Total_Enrollment'].sum()
-                overall_distributed = district_df['Total_ITN'].sum()
-                overall_remaining = district_df['ITN_Remaining'].sum()
-                
-                if overall_enrollment > 0 and (overall_distributed > 0 or overall_remaining > 0):
-                    fig_overall_pie, ax_overall_pie = plt.subplots(figsize=(10, 8))
-                    
-                    sizes = []
-                    labels = []
-                    colors = []
-                    
-                    if overall_distributed > 0:
-                        sizes.append(overall_distributed)
-                        labels.append(f'ITNs Distributed\n({overall_distributed:,})')
-                        colors.append('lightcoral')
-                    
-                    if overall_remaining > 0:
-                        sizes.append(overall_remaining)
-                        labels.append(f'ITNs Remaining\n({overall_remaining:,})')
-                        colors.append('hotpink')
-                    
-                    if sizes:
-                        explode = [0.05] + [0] * (len(sizes) - 1)  # Slightly separate the first slice
-                        
-                        wedges, texts, autotexts = ax_overall_pie.pie(sizes, labels=labels, autopct='%1.1f%%',
-                                                                     colors=colors, startangle=90, explode=explode)
-                        ax_overall_pie.set_title(f'Overall ITN Distribution Status\nTotal Enrollment: {overall_enrollment:,}', 
-                                                fontsize=16, fontweight='bold', pad=20)
-                        
-                        # Enhance text styling
-                        plt.setp(autotexts, size=12, weight="bold", color='white')
-                        plt.setp(texts, size=11, weight="bold")
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig_overall_pie)
-                        
-                        # Save overall pie chart
-                        overall_pie_buffer = save_map_as_png(fig_overall_pie, "Overall_Distribution_Pie")
-                        if overall_pie_buffer:
-                            map_images['overall_distribution_pie'] = overall_pie_buffer
-                        plt.close(fig_overall_pie)
+                                            ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
+            plt.tight_layout()
+            st.pyplot(fig_itn_class)
+            
+            # Save ITN class chart
+            itn_class_buffer = save_map_as_png(fig_itn_class, "ITN_Distribution_by_Class")
+            if itn_class_buffer:
+                map_images['itn_class'] = itn_class_buffer
+            plt.close(fig_itn_class)
 
         # Display Summary Tables
         st.subheader("📈 District Summary Table")
         if summaries['district']:
             district_summary_df = pd.DataFrame(summaries['district'])
-            st.dataframe(district_summary_df)
+            st.dataframe(district_summary_df, use_container_width=True)
         else:
             st.info("No district data available")
 
         st.subheader("📈 Chiefdom Summary Table")
         if summaries['chiefdom']:
             chiefdom_summary_df = pd.DataFrame(summaries['chiefdom'])
-            st.dataframe(chiefdom_summary_df)
+            st.dataframe(chiefdom_summary_df, use_container_width=True)
         else:
             st.info("No chiefdom data available")
+
+        # Chiefdoms Analysis by District
+        st.subheader("📊 Chiefdoms Analysis by District")
+        
+        if 'District' in extracted_df.columns and 'Chiefdom' in extracted_df.columns:
+            districts_with_chiefdoms = extracted_df[extracted_df['Chiefdom'].notna()]['District'].unique()
+            
+            for district in districts_with_chiefdoms:
+                st.write(f"### {district} District - Chiefdoms Analysis")
+                
+                # Filter data for this district
+                district_data = extracted_df[extracted_df['District'] == district]
+                district_chiefdoms = district_data['Chiefdom'].dropna().unique()
+                
+                if len(district_chiefdoms) > 0:
+                    # Calculate by chiefdom for this district
+                    district_chiefdom_analysis = []
+                    
+                    for chiefdom in district_chiefdoms:
+                        chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
+                        
+                        total_enrollment = 0
+                        total_boys = 0
+                        total_girls = 0
+                        for class_num in range(1, 6):
+                            # Total enrollment
+                            enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                            if enrollment_col and enrollment_col in chiefdom_data.columns:
+                                total_enrollment += int(chiefdom_data[enrollment_col].fillna(0).sum())
+                            
+                            # Boys and girls
+                            boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+                            girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
+                            if boys_col and boys_col in chiefdom_data.columns:
+                                total_boys += int(chiefdom_data[boys_col].fillna(0).sum())
+                            if girls_col and girls_col in chiefdom_data.columns:
+                                total_girls += int(chiefdom_data[girls_col].fillna(0).sum())
+                            
+                            # ITNs distributed
+                            boys_itn_col = COLUMN_MAPPING['boys_itn_cols'].get(class_num)
+                            girls_itn_col = COLUMN_MAPPING['girls_itn_cols'].get(class_num)
+                            if boys_itn_col and boys_itn_col in chiefdom_data.columns:
+                                total_itn += int(chiefdom_data[boys_itn_col].fillna(0).sum())
+                            if girls_itn_col and girls_itn_col in chiefdom_data.columns:
+                                total_itn += int(chiefdom_data[girls_itn_col].fillna(0).sum())
+                        
+                        coverage = (total_itn / total_enrollment * 100) if total_enrollment > 0 else 0
+                        
+                        district_chiefdom_analysis.append({
+                            'Chiefdom': chiefdom,
+                            'Total_Enrollment': total_enrollment,
+                            'Total_Boys': total_boys,
+                            'Total_Girls': total_girls,
+                            'Total_ITN': total_itn,
+                            'Coverage': coverage
+                        })
+                    
+                    if district_chiefdom_analysis:
+                        district_chiefdom_df = pd.DataFrame(district_chiefdom_analysis)
+                        district_chiefdom_df = district_chiefdom_df.sort_values('Total_Enrollment', ascending=False)
+                        
+                        # Display chiefdom table for this district
+                        st.write(f"**{district} District Chiefdoms Summary:**")
+                        display_chiefdom_df = district_chiefdom_df.copy()
+                        display_chiefdom_df['Coverage'] = display_chiefdom_df['Coverage'].apply(lambda x: f"{x:.1f}%")
+                        st.dataframe(display_chiefdom_df, use_container_width=True)
+                        
+                        # Create individual charts for this district's chiefdoms
+                        if len(district_chiefdom_df) > 0:
+                            # Plot: Total Enrollment by Chiefdoms in this District
+                            fig1, ax1 = plt.subplots(figsize=(14, 8))
+                            bars1 = ax1.barh(district_chiefdom_df['Chiefdom'], district_chiefdom_df['Total_Enrollment'], 
+                                           color='#4682B4', edgecolor='navy', linewidth=1.5)
+                            ax1.set_title(f'{district} District - Total Enrollment by Chiefdom', fontsize=16, fontweight='bold', pad=20)
+                            ax1.set_xlabel('Number of Students', fontsize=12, fontweight='bold')
+                            ax1.set_ylabel('Chiefdoms', fontsize=12, fontweight='bold')
+                            
+                            # Add value labels
+                            for i, v in enumerate(district_chiefdom_df['Total_Enrollment']):
+                                if v > 0:
+                                    ax1.text(v + max(district_chiefdom_df['Total_Enrollment']) * 0.02, i, 
+                                           f'{int(v):,}', va='center', fontweight='bold', fontsize=10)
+                            
+                            ax1.grid(axis='x', alpha=0.3, linestyle='--')
+                            plt.tight_layout()
+                            st.pyplot(fig1)
+                            
+                            # Save enrollment chart
+                            enrollment_buffer = save_map_as_png(fig1, f"{district}_Enrollment_by_Chiefdom")
+                            if enrollment_buffer:
+                                map_images[f'{district}_enrollment'] = enrollment_buffer
+                            plt.close(fig1)
+                            
+                            # Plot: ITN Coverage by Chiefdoms in this District
+                            fig2, ax2 = plt.subplots(figsize=(14, 8))
+                            bars2 = ax2.barh(district_chiefdom_df['Chiefdom'], district_chiefdom_df['Coverage'], 
+                                           color='#FF8C00', edgecolor='darkorange', linewidth=1.5)
+                            ax2.set_title(f'{district} District - ITN Coverage by Chiefdom (%)', fontsize=16, fontweight='bold', pad=20)
+                            ax2.set_xlabel('Coverage Percentage (%)', fontsize=12, fontweight='bold')
+                            ax2.set_ylabel('Chiefdoms', fontsize=12, fontweight='bold')
+                            
+                            # Add value labels
+                            for i, v in enumerate(district_chiefdom_df['Coverage']):
+                                if v > 0:
+                                    ax2.text(v + max(district_chiefdom_df['Coverage']) * 0.02, i, 
+                                           f'{v:.1f}%', va='center', fontweight='bold', fontsize=10)
+                            
+                            ax2.grid(axis='x', alpha=0.3, linestyle='--')
+                            ax2.set_xlim(0, max(district_chiefdom_df['Coverage']) * 1.15 if max(district_chiefdom_df['Coverage']) > 0 else 100)
+                            plt.tight_layout()
+                            st.pyplot(fig2)
+                            
+                            # Save coverage chart
+                            coverage_buffer = save_map_as_png(fig2, f"{district}_Coverage_by_Chiefdom")
+                            if coverage_buffer:
+                                map_images[f'{district}_coverage'] = coverage_buffer
+                            plt.close(fig2)
+                        
+                        st.divider()
 
         # Summary buttons section
         st.subheader("📊 Summary Reports")
@@ -914,15 +1326,15 @@ def main():
                     
                     # Add enrollment columns to aggregation
                     for class_num in range(1, 6):
-                        total_col = f"Number of enrollments in class {class_num}"
-                        boys_col = f"Number of boys in class {class_num}"
-                        girls_col = f"Number of girls in class {class_num}"
+                        enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                        boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+                        girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
                         
-                        if total_col in extracted_df.columns:
-                            agg_dict[total_col] = "sum"
-                        if boys_col in extracted_df.columns:
+                        if enrollment_col and enrollment_col in extracted_df.columns:
+                            agg_dict[enrollment_col] = "sum"
+                        if boys_col and boys_col in extracted_df.columns:
                             agg_dict[boys_col] = "sum"
-                        if girls_col in extracted_df.columns:
+                        if girls_col and girls_col in extracted_df.columns:
                             agg_dict[girls_col] = "sum"
                     
                     if agg_dict:
@@ -932,12 +1344,12 @@ def main():
                         # Calculate total enrollment
                         district_summary["Total Enrollment"] = 0
                         for class_num in range(1, 6):
-                            total_col = f"Number of enrollments in class {class_num}"
-                            if total_col in district_summary.columns:
-                                district_summary["Total Enrollment"] += district_summary[total_col].fillna(0)
+                            enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                            if enrollment_col and enrollment_col in district_summary.columns:
+                                district_summary["Total Enrollment"] += district_summary[enrollment_col].fillna(0)
                         
                         # Display summary table
-                        st.dataframe(district_summary)
+                        st.dataframe(district_summary, use_container_width=True)
                         
                         # Download button for district summary
                         district_csv = district_summary.to_csv(index=False)
@@ -963,15 +1375,15 @@ def main():
                     
                     # Add enrollment columns to aggregation
                     for class_num in range(1, 6):
-                        total_col = f"Number of enrollments in class {class_num}"
-                        boys_col = f"Number of boys in class {class_num}"
-                        girls_col = f"Number of girls in class {class_num}"
+                        enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                        boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+                        girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
                         
-                        if total_col in extracted_df.columns:
-                            agg_dict[total_col] = "sum"
-                        if boys_col in extracted_df.columns:
+                        if enrollment_col and enrollment_col in extracted_df.columns:
+                            agg_dict[enrollment_col] = "sum"
+                        if boys_col and boys_col in extracted_df.columns:
                             agg_dict[boys_col] = "sum"
-                        if girls_col in extracted_df.columns:
+                        if girls_col and girls_col in extracted_df.columns:
                             agg_dict[girls_col] = "sum"
                     
                     if agg_dict:
@@ -981,12 +1393,12 @@ def main():
                         # Calculate total enrollment
                         chiefdom_summary["Total Enrollment"] = 0
                         for class_num in range(1, 6):
-                            total_col = f"Number of enrollments in class {class_num}"
-                            if total_col in chiefdom_summary.columns:
-                                chiefdom_summary["Total Enrollment"] += chiefdom_summary[total_col].fillna(0)
+                            enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                            if enrollment_col and enrollment_col in chiefdom_summary.columns:
+                                chiefdom_summary["Total Enrollment"] += chiefdom_summary[enrollment_col].fillna(0)
                         
                         # Display summary table
-                        st.dataframe(chiefdom_summary)
+                        st.dataframe(chiefdom_summary, use_container_width=True)
                         
                         # Download button for chiefdom summary
                         chiefdom_csv = chiefdom_summary.to_csv(index=False)
@@ -1000,6 +1412,78 @@ def main():
                         st.info("No enrollment data available for chiefdom summary")
                 else:
                     st.info("No chiefdom data available")
+
+        # Visualization and filtering section
+        st.subheader("🔍 Detailed Data Filtering and Visualization")
+        
+        # Check if data is available after filtering
+        if not filtered_df.empty:
+            st.write(f"### Filtered Data - {len(filtered_df)} records")
+            st.dataframe(filtered_df, use_container_width=True)
+            
+            # Download button for filtered data
+            filtered_csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Filtered Data as CSV",
+                data=filtered_csv,
+                file_name="filtered_data.csv",
+                mime="text/csv"
+            )
+            
+            # Define the hierarchy levels to include in the summary
+            if grouping_selection in hierarchy:
+                group_columns = hierarchy[grouping_selection]
+                
+                # Create aggregation dictionary for enrollment data
+                agg_dict = {}
+                for class_num in range(1, 6):
+                    enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                    boys_col = COLUMN_MAPPING['boys_cols'].get(class_num)
+                    girls_col = COLUMN_MAPPING['girls_cols'].get(class_num)
+                    
+                    if enrollment_col and enrollment_col in filtered_df.columns:
+                        agg_dict[enrollment_col] = "sum"
+                    if boys_col and boys_col in filtered_df.columns:
+                        agg_dict[boys_col] = "sum"
+                    if girls_col and girls_col in filtered_df.columns:
+                        agg_dict[girls_col] = "sum"
+                
+                if agg_dict:
+                    # Group by the selected hierarchical columns
+                    available_group_columns = [col for col in group_columns if col in filtered_df.columns]
+                    if available_group_columns:
+                        grouped_data = filtered_df.groupby(available_group_columns).agg(agg_dict).reset_index()
+                        
+                        # Calculate total enrollment
+                        grouped_data["Total Enrollment"] = 0
+                        for class_num in range(1, 6):
+                            enrollment_col = COLUMN_MAPPING['enrollment_cols'].get(class_num)
+                            if enrollment_col and enrollment_col in grouped_data.columns:
+                                grouped_data["Total Enrollment"] += grouped_data[enrollment_col].fillna(0)
+                        
+                        # Summary Table with separate columns for each level
+                        st.subheader("📊 Detailed Summary Table")
+                        st.dataframe(grouped_data, use_container_width=True)
+                        
+                        # Create a temporary group column for the chart
+                        if len(available_group_columns) > 0:
+                            grouped_data['Group'] = grouped_data[available_group_columns].apply(
+                                lambda row: ' - '.join(row.astype(str)), axis=1
+                            )
+                            
+                            # Create a bar chart
+                            if len(grouped_data) > 0 and grouped_data["Total Enrollment"].sum() > 0:
+                                fig, ax = plt.subplots(figsize=(12, 8))
+                                grouped_data.plot(kind="bar", x="Group", y="Total Enrollment", ax=ax, color="blue")
+                                ax.set_title(f"Total Enrollment by {grouping_selection}")
+                                ax.set_xlabel("")
+                                ax.set_ylabel("Number of Students")
+                                plt.xticks(rotation=45, ha='right')
+                                plt.tight_layout()
+                                st.pyplot(fig)
+                                plt.close(fig)
+        else:
+            st.warning("No data available for the selected filters.")
 
         # Final Data Export Section
         st.subheader("📥 Export Complete Dataset")
@@ -1025,14 +1509,24 @@ def main():
                 excel_buffer = BytesIO()
                 with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                     extracted_df.to_excel(writer, sheet_name='Extracted Data', index=False)
+                    
+                    # Add summary sheets
+                    if summaries['district']:
+                        district_summary_df = pd.DataFrame(summaries['district'])
+                        district_summary_df.to_excel(writer, sheet_name='District Summary', index=False)
+                    
+                    if summaries['chiefdom']:
+                        chiefdom_summary_df = pd.DataFrame(summaries['chiefdom'])
+                        chiefdom_summary_df.to_excel(writer, sheet_name='Chiefdom Summary', index=False)
+                
                 excel_data = excel_buffer.getvalue()
                 
                 st.download_button(
                     label="📊 Download Complete Data as Excel",
                     data=excel_data,
-                    file_name="complete_extracted_data.xlsx",
+                    file_name="complete_extracted_data_with_summaries.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    help="Download all extracted data in Excel format"
+                    help="Download all extracted data with summary sheets in Excel format"
                 )
             except Exception as e:
                 st.error(f"Error creating Excel file: {e}")
@@ -1048,6 +1542,49 @@ def main():
             with st.expander("📁 View Generated Visualizations"):
                 for map_name in map_images.keys():
                     st.write(f"• {map_name}")
+                    
+        # Performance insights
+        if summaries['district']:
+            st.subheader("🎯 Key Performance Insights")
+            
+            # Best and worst performing districts
+            district_performance = sorted(summaries['district'], key=lambda x: x['coverage'], reverse=True)
+            if district_performance:
+                best_district = district_performance[0]
+                worst_district = district_performance[-1]
+                
+                insight_col1, insight_col2 = st.columns(2)
+                
+                with insight_col1:
+                    st.success(f"""
+                    **🏆 Best Performing District**
+                    
+                    **{best_district['district']}**
+                    - Coverage: {best_district['coverage']:.1f}%
+                    - Schools: {best_district['schools']}
+                    - Students: {best_district['enrollment']:,}
+                    - ITNs Distributed: {best_district['itn']:,}
+                    """)
+                
+                with insight_col2:
+                    st.warning(f"""
+                    **⚠️ District Needing Support**
+                    
+                    **{worst_district['district']}**
+                    - Coverage: {worst_district['coverage']:.1f}%
+                    - Schools: {worst_district['schools']}
+                    - Students: {worst_district['enrollment']:,}
+                    - ITNs Distributed: {worst_district['itn']:,}
+                    """)
+                
+                # Overall program insights
+                total_coverage = summaries['overall']['coverage']
+                if total_coverage >= 80:
+                    st.success(f"🎉 **Excellent Overall Performance**: {total_coverage:.1f}% coverage achieved!")
+                elif total_coverage >= 60:
+                    st.info(f"📈 **Good Progress**: {total_coverage:.1f}% coverage - approaching target!")
+                else:
+                    st.warning(f"🎯 **Room for Improvement**: {total_coverage:.1f}% coverage - additional efforts needed")
 
     except Exception as e:
         st.error(f"❌ Error generating summaries: {e}")
