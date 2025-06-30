@@ -362,7 +362,7 @@ st.markdown("---")  # Add a horizontal line separator
 st.title("📊 School Based Distribution of ITNs in SL")
 
 # Upload file
-uploaded_file = "GMB253374_SBD_ITN_clean.xlsx"
+uploaded_file = "sbd first_submission_clean.xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
@@ -580,8 +580,8 @@ if uploaded_file:
                 # Filter data for this district to get GPS coordinates
                 district_data = extracted_df[extracted_df["District"] == district_name].copy()
                 
-                # Create the district plot
-                fig_district, ax_district = plt.subplots(figsize=(14, 8))
+                # Create the district plot with normal size
+                fig_district, ax_district = plt.subplots(figsize=(12, 8))
                 
                 # Plot chiefdom boundaries in white with black edges
                 district_gdf.plot(ax=ax_district, color='white', edgecolor='black', alpha=0.8, linewidth=2)
@@ -719,8 +719,8 @@ if uploaded_file:
             # Filter data for BO district to get GPS coordinates
             bo_data = extracted_df[extracted_df["District"] == left_district].copy()
             
-            # Create the BO district plot
-            fig_bo, ax_bo = plt.subplots(figsize=(14, 8))
+            # Create the BO district plot with normal size
+            fig_bo, ax_bo = plt.subplots(figsize=(12, 8))
             
             # Plot chiefdom boundaries in white with black edges
             bo_gdf.plot(ax=ax_bo, color='white', edgecolor='black', alpha=0.8, linewidth=2)
@@ -831,8 +831,8 @@ if uploaded_file:
             # Filter data for BOMBALI district to get GPS coordinates
             bombali_data = extracted_df[extracted_df["District"] == right_district].copy()
             
-            # Create the BOMBALI district plot
-            fig_bombali, ax_bombali = plt.subplots(figsize=(14, 8))
+            # Create the BOMBALI district plot with normal size
+            fig_bombali, ax_bombali = plt.subplots(figsize=(12, 8))
             
             # Plot chiefdom boundaries in white with black edges
             bombali_gdf.plot(ax=ax_bombali, color='white', edgecolor='black', alpha=0.8, linewidth=2)
@@ -1721,7 +1721,7 @@ if uploaded_file:
                 pdf_buffer = BytesIO()
                 
                 # Create PDF document
-                doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+                doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
                 story = []
                 
                 # Get styles
@@ -1732,6 +1732,13 @@ if uploaded_file:
                     fontSize=24,
                     alignment=TA_CENTER,
                     spaceAfter=30
+                )
+                plot_title_style = ParagraphStyle(
+                    'PlotTitle',
+                    parent=styles['Heading2'],
+                    fontSize=18,
+                    alignment=TA_CENTER,
+                    spaceAfter=20
                 )
                 heading_style = ParagraphStyle(
                     'CustomHeading',
@@ -1751,146 +1758,140 @@ if uploaded_file:
                 current_datetime = datetime.now()
                 date_text = f"Generated on: {current_datetime.strftime('%B %d, %Y at %I:%M %p')}"
                 story.append(Paragraph(date_text, normal_style))
-                story.append(PageBreak())
                 
-                # Executive Summary
-                story.append(Paragraph("Executive Summary", heading_style))
-                
-                summary_text = f"""
-                This comprehensive report presents the analysis of School-Based Distribution (SBD) data collected across Sierra Leone, 
-                covering {summaries['overall']['total_districts']} districts and {summaries['overall']['total_chiefdoms']} chiefdoms with a total of {summaries['overall']['total_schools']} school records.
-                <br/><br/>
-                <b>KEY FINDINGS:</b><br/>
-                • Total Schools Surveyed: {summaries['overall']['total_schools']:,}<br/>
-                • Districts Covered: {summaries['overall']['total_districts']}<br/>
-                • Chiefdoms Covered: {summaries['overall']['total_chiefdoms']}<br/>
-                • Total Student Enrollment: {summaries['overall']['total_enrollment']:,}<br/>
-                • Total Boys: {summaries['overall']['total_boys']:,}<br/>
-                • Total Girls: {summaries['overall']['total_girls']:,}<br/>
-                • Gender Ratio (Girls:Boys): {(summaries['overall']['total_girls']/summaries['overall']['total_boys']*100) if summaries['overall']['total_boys'] > 0 else 0:.1f}%<br/>
-                • Total ITNs Distributed: {summaries['overall']['total_itn']:,}<br/>
-                • Overall Coverage Rate: {summaries['overall']['coverage']:.1f}%<br/>
+                # Add summary statistics on title page
+                summary_stats = f"""
+                <b>KEY STATISTICS:</b><br/>
+                • Total Schools: {summaries['overall']['total_schools']:,}<br/>
+                • Districts: {summaries['overall']['total_districts']}<br/>
+                • Chiefdoms: {summaries['overall']['total_chiefdoms']}<br/>
+                • Total Students: {summaries['overall']['total_enrollment']:,}<br/>
+                • ITNs Distributed: {summaries['overall']['total_itn']:,}<br/>
+                • Coverage Rate: {summaries['overall']['coverage']:.1f}%<br/>
+                • Total Visualizations: {len(map_images)}
                 """
-                story.append(Paragraph(summary_text, normal_style))
+                story.append(Spacer(1, 40))
+                story.append(Paragraph(summary_stats, normal_style))
                 story.append(PageBreak())
                 
-                # Geographic Maps Section
-                story.append(Paragraph("Geographic Distribution Maps", heading_style))
-                
-                # Add Sierra Leone overall map
-                if 'sierra_leone_overall' in temp_image_files:
-                    story.append(Paragraph("Sierra Leone - Overall Distribution", heading_style))
-                    story.append(Paragraph("Overview of school distribution across all districts in Sierra Leone:", normal_style))
-                    img = Image(temp_image_files['sierra_leone_overall'], width=6*inch, height=4*inch)
-                    story.append(img)
-                    story.append(Spacer(1, 20))
-                
-                # Add all district GPS maps
-                all_districts = sorted(extracted_df['District'].dropna().unique())
-                for district in all_districts:
-                    district_gps_key = f'{district}_district_gps'
-                    if district_gps_key in temp_image_files:
-                        story.append(Paragraph(f"{district} District - GPS Locations", heading_style))
-                        story.append(Paragraph(f"Geographic distribution of schools and chiefdoms in {district} District:", normal_style))
-                        img = Image(temp_image_files[district_gps_key], width=6*inch, height=4*inch)
-                        story.append(img)
-                        story.append(Spacer(1, 20))
-                
-                story.append(PageBreak())
-                
-                # Analysis Charts Section
-                story.append(Paragraph("Analysis Charts", heading_style))
-                
-                # Enhanced enrollment analysis
-                if 'enhanced_enrollment_analysis' in temp_image_files:
-                    story.append(Paragraph("Enhanced Enrollment vs ITN Distribution Analysis", heading_style))
-                    img = Image(temp_image_files['enhanced_enrollment_analysis'], width=6*inch, height=4*inch)
-                    story.append(img)
-                    story.append(Spacer(1, 20))
-                
-                # Overall distribution pie
-                if 'overall_distribution_pie' in temp_image_files:
-                    story.append(Paragraph("Overall ITN Distribution Status", heading_style))
-                    img = Image(temp_image_files['overall_distribution_pie'], width=5*inch, height=4*inch)
-                    story.append(img)
-                    story.append(Spacer(1, 20))
-                
-                story.append(PageBreak())
-                
-                # Gender Analysis Section
-                story.append(Paragraph("Gender Analysis", heading_style))
-                
-                if 'gender_overall' in temp_image_files:
-                    story.append(Paragraph("Overall Gender Distribution", heading_style))
-                    img = Image(temp_image_files['gender_overall'], width=5*inch, height=4*inch)
-                    story.append(img)
-                    story.append(Spacer(1, 20))
-                
-                if 'gender_district' in temp_image_files:
-                    story.append(Paragraph("Gender Distribution by District", heading_style))
-                    img = Image(temp_image_files['gender_district'], width=6*inch, height=4*inch)
-                    story.append(img)
-                    story.append(Spacer(1, 20))
-                
-                story.append(PageBreak())
-                
-                # District Summary Table
-                story.append(Paragraph("District Summary Table", heading_style))
-                
-                # Create table data
-                table_data = [['District', 'Schools', 'Chiefdoms', 'Boys', 'Girls', 'Total Enrollment', 'ITNs', 'Coverage (%)']]
-                for district_info in summaries['district']:
-                    table_data.append([
-                        district_info['district'],
-                        str(district_info['schools']),
-                        str(district_info['chiefdoms']),
-                        f"{int(district_info['boys']):,}",
-                        f"{int(district_info['girls']):,}",
-                        f"{int(district_info['enrollment']):,}",
-                        f"{int(district_info['itn']):,}",
-                        f"{district_info['coverage']:.1f}%"
-                    ])
-                
-                # Create table
-                table = Table(table_data)
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 12),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
-                ]))
-                story.append(table)
-                story.append(PageBreak())
-                
-                # All Visualizations Section
-                story.append(Paragraph("Complete Visualization Gallery", heading_style))
-                story.append(Paragraph(f"All {len(map_images)} charts and visualizations generated during the analysis:", normal_style))
-                story.append(Spacer(1, 20))
-                
-                # Add all remaining charts
+                # Add ALL charts - ONE PER PAGE with titles
                 chart_counter = 0
-                for chart_key, temp_file in temp_image_files.items():
-                    if chart_key not in ['sierra_leone_overall', 'enhanced_enrollment_analysis', 'overall_distribution_pie', 'gender_overall', 'gender_district'] and not chart_key.endswith('_district_gps'):
-                        chart_counter += 1
-                        chart_title = chart_key.replace('_', ' ').title()
-                        story.append(Paragraph(f"Chart {chart_counter}: {chart_title}", heading_style))
-                        
-                        try:
-                            img = Image(temp_file, width=5*inch, height=3.5*inch)
-                            story.append(img)
-                            story.append(Spacer(1, 15))
-                        except Exception as e:
-                            story.append(Paragraph(f"Error loading chart: {str(e)}", normal_style))
-                            story.append(Spacer(1, 15))
+                sorted_charts = sorted(map_images.keys())
                 
-                # Add footer
-                footer_text = f"Generated by Enhanced SBD Analysis Dashboard - {current_datetime.strftime('%B %d, %Y at %I:%M %p')}"
-                story.append(Spacer(1, 30))
-                story.append(Paragraph(footer_text, normal_style))
+                for chart_key in sorted_charts:
+                    chart_counter += 1
+                    
+                    # Create descriptive title for each chart
+                    if 'sierra_leone_overall' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Sierra Leone Overall Map - All Districts and Schools"
+                        description = "National overview showing all districts with GPS coordinates of schools across Sierra Leone."
+                    elif 'district_gps' in chart_key.lower():
+                        district_name = chart_key.replace('_district_gps', '').replace('_District_GPS_Map', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District Map with GPS Coordinates"
+                        description = f"Detailed map of {district_name} District showing chiefdoms and exact GPS locations of all schools."
+                    elif 'bo_district_detailed' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: BO District - Enhanced Detailed View with GPS"
+                        description = "Enhanced detailed view of BO District with GPS coordinates and comprehensive chiefdom mapping."
+                    elif 'bombali_district_detailed' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: BOMBALI District - Enhanced Detailed View with GPS"
+                        description = "Enhanced detailed view of BOMBALI District with GPS coordinates and comprehensive chiefdom mapping."
+                    elif 'enhanced_enrollment_analysis' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Enhanced Enrollment vs ITN Distribution Analysis"
+                        description = "Comprehensive analysis showing total enrollment, ITNs distributed, and remaining needs across districts."
+                    elif 'overall_distribution_pie' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Overall ITN Distribution Status (Pie Chart)"
+                        description = "Overall distribution showing proportion of students who have received ITNs versus those still waiting."
+                    elif 'gender_overall' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Overall Gender Distribution (Pie Chart)"
+                        description = "Overall gender distribution showing proportion of boys versus girls across all schools."
+                    elif 'gender_district' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Gender Distribution by District (Bar Chart)"
+                        description = "Comparison of boys and girls enrollment across all districts in the study."
+                    elif 'enrollment_pie' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Student Enrollment by District (Pie Chart)"
+                        description = "Proportional distribution of total student enrollment across all districts."
+                    elif 'itn_pie' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: ITN Distribution by District (Pie Chart)"
+                        description = "Proportional distribution of ITNs distributed across all districts."
+                    elif chart_key.endswith('_enrollment'):
+                        district_name = chart_key.replace('_enrollment', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District - Student Enrollment by Chiefdom"
+                        description = f"Student enrollment analysis across all chiefdoms within {district_name} District."
+                    elif chart_key.endswith('_itn'):
+                        district_name = chart_key.replace('_itn', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District - ITN Distribution by Chiefdom"
+                        description = f"ITN distribution analysis across all chiefdoms within {district_name} District."
+                    elif chart_key.endswith('_coverage'):
+                        district_name = chart_key.replace('_coverage', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District - ITN Coverage by Chiefdom"
+                        description = f"ITN coverage rate analysis across all chiefdoms within {district_name} District."
+                    else:
+                        chart_title = f"Chart {chart_counter}: {chart_key.replace('_', ' ').title()}"
+                        description = f"Analysis visualization showing {chart_key.replace('_', ' ')} data."
+                    
+                    # Add chart title
+                    story.append(Paragraph(chart_title, plot_title_style))
+                    
+                    # Add description
+                    story.append(Paragraph(description, normal_style))
+                    story.append(Spacer(1, 20))
+                    
+                    # Add the chart image with normal size (not expanded)
+                    if chart_key in temp_image_files:
+                        try:
+                            # Use consistent, normal size for all charts
+                            img = Image(temp_image_files[chart_key], width=7*inch, height=5*inch)
+                            img.hAlign = 'CENTER'
+                            story.append(img)
+                            
+                            # Add success note
+                            story.append(Spacer(1, 10))
+                            success_text = f"✓ Chart {chart_counter} successfully included"
+                            story.append(Paragraph(success_text, normal_style))
+                            
+                        except Exception as e:
+                            # Add error message if chart fails to load
+                            error_text = f"✗ Error loading chart {chart_counter}: {str(e)}"
+                            story.append(Paragraph(error_text, normal_style))
+                    
+                    # Add page break after each chart (except the last one)
+                    if chart_counter < len(sorted_charts):
+                        story.append(PageBreak())
+                
+                # Add final summary page
+                story.append(PageBreak())
+                story.append(Paragraph("Report Summary", title_style))
+                
+                final_summary = f"""
+                <b>REPORT GENERATION SUMMARY:</b><br/><br/>
+                
+                <b>Total Visualizations Generated:</b> {len(map_images)}<br/>
+                <b>Charts Successfully Included:</b> {chart_counter}<br/>
+                <b>Report Pages:</b> {chart_counter + 2} (Title + {chart_counter} Charts + Summary)<br/><br/>
+                
+                <b>VISUALIZATION BREAKDOWN:</b><br/>
+                • Geographic Maps: {len([k for k in map_images.keys() if 'sierra_leone' in k.lower() or 'district' in k.lower() and 'gps' in k.lower()])}<br/>
+                • Analysis Charts: {len([k for k in map_images.keys() if any(x in k.lower() for x in ['enhanced', 'overall', 'gender', 'pie'])])}<br/>
+                • Chiefdom Charts: {len([k for k in map_images.keys() if k.endswith(('_enrollment', '_itn', '_coverage'))])}<br/><br/>
+                
+                <b>DATA COVERAGE:</b><br/>
+                • Districts Analyzed: {summaries['overall']['total_districts']}<br/>
+                • Chiefdoms Covered: {summaries['overall']['total_chiefdoms']}<br/>
+                • Schools Surveyed: {summaries['overall']['total_schools']:,}<br/>
+                • Students Enrolled: {summaries['overall']['total_enrollment']:,}<br/><br/>
+                
+                <b>REPORT SPECIFICATIONS:</b><br/>
+                • Format: PDF (Portable Document Format)<br/>
+                • Page Size: A4<br/>
+                • Chart Resolution: High Quality (300 DPI)<br/>
+                • Layout: One chart per page with descriptive titles<br/>
+                • Generation Time: {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}<br/><br/>
+                
+                <i>This report contains all visualizations generated during the School-Based Distribution (SBD) analysis, 
+                with each chart presented on a separate page for optimal viewing and printing.</i>
+                """
+                
+                story.append(Paragraph(final_summary, normal_style))
                 
                 # Build PDF
                 doc.build(story)
@@ -1898,6 +1899,37 @@ if uploaded_file:
                 # Clean up temporary files
                 for temp_file in temp_image_files.values():
                     if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                os.rmdir(temp_dir)
+                
+                # Get PDF data
+                pdf_data = pdf_buffer.getvalue()
+                
+                # Success message with chart count
+                st.success(f"✅ PDF report generated successfully with {chart_counter} charts (one per page)!")
+                
+                # Display chart breakdown
+                st.info(f"""
+                **📊 PDF Report Contents:**
+                - **Total Pages:** {chart_counter + 2} (Title + {chart_counter} Charts + Summary)
+                - **One chart per page** with descriptive titles
+                - **Normal-sized charts** (7" × 5") for optimal viewing
+                - **High-quality images** at 300 DPI resolution
+                """)
+                
+                # Download button for PDF
+                st.download_button(
+                    label="💾 Download PDF Report (One Chart Per Page)",
+                    data=pdf_data,
+                    file_name=f"SBD_Complete_Report_{chart_counter}_Charts_{current_datetime.strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    help=f"Download comprehensive PDF report with {chart_counter} charts, each on a separate page"
+                )
+                
+            except ImportError:
+                st.error("❌ PDF generation requires reportlab library. Please install it using: pip install reportlab")
+            except Exception as e:
+                st.error(f"❌ Error generating PDF: {str(e)}")
                         os.remove(temp_file)
                 os.rmdir(temp_dir)
                 
