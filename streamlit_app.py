@@ -362,7 +362,7 @@ st.markdown("---")  # Add a horizontal line separator
 st.title("📊 School Based Distribution of ITNs in SL")
 
 # Upload file
-uploaded_file = "latest_sbd1_06_10_2025 (1).xlsx"
+uploaded_file = "sbd first_submission_clean.xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
@@ -403,6 +403,10 @@ if uploaded_file:
         
         school_match = re.search(r"Name of school:\s*([^\n]+)", str(qr_text))
         school_names.append(school_match.group(1).strip() if school_match else None)
+
+        enrollment_match = re.search(r"Enrollment:\s*([^\n]+)", str(qr_text))
+        enrollment_values.append(enrollment_match.group(1).strip() if enrollment_match else None)
+
     
     # Create a new DataFrame with extracted values
     extracted_df = pd.DataFrame({
@@ -410,7 +414,8 @@ if uploaded_file:
         "Chiefdom": chiefdoms,
         "PHU Name": phu_names,
         "Community Name": community_names,
-        "School Name": school_names
+        "School Name": school_names,
+        "Enrollment": enrollment
     })
     
     # Add all other columns from the original DataFrame
@@ -434,7 +439,8 @@ if uploaded_file:
         "Chiefdom": ["District", "Chiefdom"],
         "PHU Name": ["District", "Chiefdom", "PHU Name"],
         "Community Name": ["District", "Chiefdom", "PHU Name", "Community Name"],
-        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name"]
+        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name"],
+        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name", "Enrollment]
     }
     
     # Initialize filtered dataframe with the full dataset
