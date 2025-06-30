@@ -362,7 +362,7 @@ st.markdown("---")  # Add a horizontal line separator
 st.title("📊 School Based Distribution of ITNs in SL")
 
 # Upload file
-uploaded_file = "GMB253374_SBD_ITN_clean.xlsx"
+uploaded_file = "sbd first_submission_clean.xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
@@ -1612,7 +1612,7 @@ if uploaded_file:
                 
                 try:
                     logo_run2 = header_para.add_run()
-                    logo_run2.add_picture("icf_sl.png", width=Inches(1.5))
+                    logo_run2.add_picture("icf_sl (2).jpg", width=Inches(1.5))
                     header_para.add_run("    ")  # Space between logos
                 except:
                     header_para.add_run("ICF Sierra Leone    ")
@@ -1660,6 +1660,7 @@ if uploaded_file:
             • Total Student Enrollment: {summaries['overall']['total_enrollment']:,}
             • Total Boys: {summaries['overall']['total_boys']:,}
             • Total Girls: {summaries['overall']['total_girls']:,}
+            • Gender Ratio (Girls:Boys): {(summaries['overall']['total_girls']/summaries['overall']['total_boys']*100) if summaries['overall']['total_boys'] > 0 else 0:.1f}%
             • Total ITNs Distributed: {summaries['overall']['total_itn']:,}
             • Overall Coverage Rate: {summaries['overall']['coverage']:.1f}%
             
