@@ -533,7 +533,7 @@ if uploaded_file:
         gdf = None
     
     # Create empty lists to store extracted data
-    districts, chiefdoms, phu_names, community_names, school_names = [], [], [], [], []
+    districts, chiefdoms, phu_names, community_names, school_names, enrollment = [], [], [], [], [], []
     
     # Process each row in the "Scan QR code" column
     for qr_text in df_original["Scan QR code"]:
@@ -543,6 +543,7 @@ if uploaded_file:
             phu_names.append(None)
             community_names.append(None)
             school_names.append(None)
+            enrollment.append(None)
             continue
             
         # Extract values using regex patterns
@@ -560,6 +561,9 @@ if uploaded_file:
         
         school_match = re.search(r"Name of school:\s*([^\n]+)", str(qr_text))
         school_names.append(school_match.group(1).strip() if school_match else None)
+
+        enrollment_match = re.search(r"Enrollment:\s*([^\n]+)", str(qr_text))
+        enrollment_names.append(enrollment_match.group(1).strip() if school_match else None)
     
     # Create a new DataFrame with extracted values
     extracted_df = pd.DataFrame({
@@ -567,7 +571,8 @@ if uploaded_file:
         "Chiefdom": chiefdoms,
         "PHU Name": phu_names,
         "Community Name": community_names,
-        "School Name": school_names
+        "School Name": school_names,
+        "Enrollment": enrollment
     })
     
     # Add all other columns from the original DataFrame including calculated columns
