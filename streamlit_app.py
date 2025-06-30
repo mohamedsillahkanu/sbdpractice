@@ -173,35 +173,10 @@ def save_map_as_png(fig, filename_prefix):
     
     return buffer
 
-# Updated function to generate comprehensive summaries with new columns
+# Function to generate comprehensive summaries with direct column calculations
 def generate_summaries(df):
-    """Generate District, Chiefdom, and Gender summaries with updated column mappings"""
+    """Generate District, Chiefdom, and Gender summaries with direct column references"""
     summaries = {}
-    
-    # Define column mappings
-    enrollment_2025_columns = [
-        'How many pupils are enrolled in Class 1?',
-        'How many pupils are enrolled in Class 2?',
-        'How many pupils are enrolled in Class 3?',
-        'How many pupils are enrolled in Class 4?',
-        'How many pupils are enrolled in Class 5?'
-    ]
-    
-    boys_itn_columns = [
-        'How many boys in Class 1 received ITNs?',
-        'How many boys in Class 2 received ITNs?',
-        'How many boys in Class 3 received ITNs?',
-        'How many boys in Class 4 received ITNs?',
-        'How many boys in Class 5 received ITNs?'
-    ]
-    
-    girls_itn_columns = [
-        'How many girls in Class 1 received ITNs?',
-        'How many girls in Class 2 received ITNs?',
-        'How many girls in Class 3 received ITNs?',
-        'How many girls in Class 4 received ITNs?',
-        'How many girls in Class 5 received ITNs?'
-    ]
     
     # Overall Summary
     overall_summary = {
@@ -215,28 +190,44 @@ def generate_summaries(df):
         'total_itn_with_reserve': 0
     }
     
-    # Calculate totals using the new columns
-    for col in enrollment_2025_columns:
-        if col in df.columns:
-            overall_summary['total_enrollment_2025'] += int(df[col].fillna(0).sum())
+    # Calculate totals directly from columns
+    # 2025 Enrollment
+    overall_summary['total_enrollment_2025'] = (
+        df['How many pupils are enrolled in Class 1?'].fillna(0).sum() +
+        df['How many pupils are enrolled in Class 2?'].fillna(0).sum() +
+        df['How many pupils are enrolled in Class 3?'].fillna(0).sum() +
+        df['How many pupils are enrolled in Class 4?'].fillna(0).sum() +
+        df['How many pupils are enrolled in Class 5?'].fillna(0).sum()
+    )
     
-    for col in boys_itn_columns:
-        if col in df.columns:
-            overall_summary['total_boys_itn'] += int(df[col].fillna(0).sum())
+    # Boys who received ITNs
+    overall_summary['total_boys_itn'] = (
+        df['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+        df['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+        df['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+        df['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+        df['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+    )
     
-    for col in girls_itn_columns:
-        if col in df.columns:
-            overall_summary['total_girls_itn'] += int(df[col].fillna(0).sum())
+    # Girls who received ITNs
+    overall_summary['total_girls_itn'] = (
+        df['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+        df['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+        df['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+        df['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+        df['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+    )
     
     # Total ITNs distributed
-    if 'Total ITNs distributed' in df.columns:
-        overall_summary['total_itn_distributed'] = int(df['Total ITNs distributed'].fillna(0).sum())
+    overall_summary['total_itn_distributed'] = df['Total ITNs distributed'].fillna(0).sum()
     
     # Total ITNs with reserve
-    if 'ITNs left at the school for pupils who were absent.' in df.columns:
-        overall_summary['total_itn_with_reserve'] = overall_summary['total_itn_distributed'] + int(df['ITNs left at the school for pupils who were absent.'].fillna(0).sum())
+    overall_summary['total_itn_with_reserve'] = (
+        df['Total ITNs distributed'].fillna(0).sum() + 
+        df['ITNs left at the school for pupils who were absent.'].fillna(0).sum()
+    )
     
-    # Calculate coverage based on boys + girls who received ITNs
+    # Calculate coverage
     overall_summary['total_beneficiaries'] = overall_summary['total_boys_itn'] + overall_summary['total_girls_itn']
     overall_summary['coverage'] = (overall_summary['total_beneficiaries'] / overall_summary['total_enrollment_2025'] * 100) if overall_summary['total_enrollment_2025'] > 0 else 0
     overall_summary['itn_remaining'] = overall_summary['total_enrollment_2025'] - overall_summary['total_beneficiaries']
@@ -248,42 +239,57 @@ def generate_summaries(df):
     district_summary = []
     for district in df['District'].dropna().unique():
         district_data = df[df['District'] == district]
+        
+        # Calculate enrollment 2025
+        enrollment_2025 = (
+            district_data['How many pupils are enrolled in Class 1?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 2?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 3?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 4?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 5?'].fillna(0).sum()
+        )
+        
+        # Boys who received ITNs
+        boys_itn = (
+            district_data['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        # Girls who received ITNs
+        girls_itn = (
+            district_data['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        # ITNs distributed
+        itn_distributed = district_data['Total ITNs distributed'].fillna(0).sum()
+        itn_with_reserve = (
+            district_data['Total ITNs distributed'].fillna(0).sum() +
+            district_data['ITNs left at the school for pupils who were absent.'].fillna(0).sum()
+        )
+        
+        total_beneficiaries = boys_itn + girls_itn
+        coverage = (total_beneficiaries / enrollment_2025 * 100) if enrollment_2025 > 0 else 0
+        
         district_stats = {
             'district': district,
             'schools': len(district_data),
             'chiefdoms': len(district_data['Chiefdom'].dropna().unique()),
-            'boys_itn': 0,
-            'girls_itn': 0,
-            'enrollment_2025': 0,
-            'itn_distributed': 0,
-            'itn_with_reserve': 0
+            'boys_itn': int(boys_itn),
+            'girls_itn': int(girls_itn),
+            'enrollment_2025': int(enrollment_2025),
+            'itn_distributed': int(itn_distributed),
+            'itn_with_reserve': int(itn_with_reserve),
+            'total_beneficiaries': int(total_beneficiaries),
+            'coverage': coverage,
+            'itn_remaining': int(enrollment_2025 - total_beneficiaries)
         }
-        
-        # Calculate enrollment and ITN recipients
-        for col in enrollment_2025_columns:
-            if col in district_data.columns:
-                district_stats['enrollment_2025'] += int(district_data[col].fillna(0).sum())
-        
-        for col in boys_itn_columns:
-            if col in district_data.columns:
-                district_stats['boys_itn'] += int(district_data[col].fillna(0).sum())
-        
-        for col in girls_itn_columns:
-            if col in district_data.columns:
-                district_stats['girls_itn'] += int(district_data[col].fillna(0).sum())
-        
-        # Total ITNs distributed
-        if 'Total ITNs distributed' in district_data.columns:
-            district_stats['itn_distributed'] = int(district_data['Total ITNs distributed'].fillna(0).sum())
-        
-        # Total ITNs with reserve
-        if 'ITNs left at the school for pupils who were absent.' in district_data.columns:
-            district_stats['itn_with_reserve'] = district_stats['itn_distributed'] + int(district_data['ITNs left at the school for pupils who were absent.'].fillna(0).sum())
-        
-        # Calculate coverage
-        district_stats['total_beneficiaries'] = district_stats['boys_itn'] + district_stats['girls_itn']
-        district_stats['coverage'] = (district_stats['total_beneficiaries'] / district_stats['enrollment_2025'] * 100) if district_stats['enrollment_2025'] > 0 else 0
-        district_stats['itn_remaining'] = district_stats['enrollment_2025'] - district_stats['total_beneficiaries']
         
         district_summary.append(district_stats)
     
@@ -295,42 +301,57 @@ def generate_summaries(df):
         district_data = df[df['District'] == district]
         for chiefdom in district_data['Chiefdom'].dropna().unique():
             chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
+            
+            # Calculate enrollment 2025
+            enrollment_2025 = (
+                chiefdom_data['How many pupils are enrolled in Class 1?'].fillna(0).sum() +
+                chiefdom_data['How many pupils are enrolled in Class 2?'].fillna(0).sum() +
+                chiefdom_data['How many pupils are enrolled in Class 3?'].fillna(0).sum() +
+                chiefdom_data['How many pupils are enrolled in Class 4?'].fillna(0).sum() +
+                chiefdom_data['How many pupils are enrolled in Class 5?'].fillna(0).sum()
+            )
+            
+            # Boys who received ITNs
+            boys_itn = (
+                chiefdom_data['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+            )
+            
+            # Girls who received ITNs
+            girls_itn = (
+                chiefdom_data['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+                chiefdom_data['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+            )
+            
+            # ITNs distributed
+            itn_distributed = chiefdom_data['Total ITNs distributed'].fillna(0).sum()
+            itn_with_reserve = (
+                chiefdom_data['Total ITNs distributed'].fillna(0).sum() +
+                chiefdom_data['ITNs left at the school for pupils who were absent.'].fillna(0).sum()
+            )
+            
+            total_beneficiaries = boys_itn + girls_itn
+            coverage = (total_beneficiaries / enrollment_2025 * 100) if enrollment_2025 > 0 else 0
+            
             chiefdom_stats = {
                 'district': district,
                 'chiefdom': chiefdom,
                 'schools': len(chiefdom_data),
-                'boys_itn': 0,
-                'girls_itn': 0,
-                'enrollment_2025': 0,
-                'itn_distributed': 0,
-                'itn_with_reserve': 0
+                'boys_itn': int(boys_itn),
+                'girls_itn': int(girls_itn),
+                'enrollment_2025': int(enrollment_2025),
+                'itn_distributed': int(itn_distributed),
+                'itn_with_reserve': int(itn_with_reserve),
+                'total_beneficiaries': int(total_beneficiaries),
+                'coverage': coverage,
+                'itn_remaining': int(enrollment_2025 - total_beneficiaries)
             }
-            
-            # Calculate enrollment and ITN recipients
-            for col in enrollment_2025_columns:
-                if col in chiefdom_data.columns:
-                    chiefdom_stats['enrollment_2025'] += int(chiefdom_data[col].fillna(0).sum())
-            
-            for col in boys_itn_columns:
-                if col in chiefdom_data.columns:
-                    chiefdom_stats['boys_itn'] += int(chiefdom_data[col].fillna(0).sum())
-            
-            for col in girls_itn_columns:
-                if col in chiefdom_data.columns:
-                    chiefdom_stats['girls_itn'] += int(chiefdom_data[col].fillna(0).sum())
-            
-            # Total ITNs distributed
-            if 'Total ITNs distributed' in chiefdom_data.columns:
-                chiefdom_stats['itn_distributed'] = int(chiefdom_data['Total ITNs distributed'].fillna(0).sum())
-            
-            # Total ITNs with reserve
-            if 'ITNs left at the school for pupils who were absent.' in chiefdom_data.columns:
-                chiefdom_stats['itn_with_reserve'] = chiefdom_stats['itn_distributed'] + int(chiefdom_data['ITNs left at the school for pupils who were absent.'].fillna(0).sum())
-            
-            # Calculate coverage
-            chiefdom_stats['total_beneficiaries'] = chiefdom_stats['boys_itn'] + chiefdom_stats['girls_itn']
-            chiefdom_stats['coverage'] = (chiefdom_stats['total_beneficiaries'] / chiefdom_stats['enrollment_2025'] * 100) if chiefdom_stats['enrollment_2025'] > 0 else 0
-            chiefdom_stats['itn_remaining'] = chiefdom_stats['enrollment_2025'] - chiefdom_stats['total_beneficiaries']
             
             chiefdom_summary.append(chiefdom_stats)
     
@@ -340,8 +361,7 @@ def generate_summaries(df):
 
 
 
-
-# Part 2
+# part 2
 
 
 # Logo Section - Clean 4 Logo Layout
@@ -409,61 +429,69 @@ st.markdown("---")  # Add a horizontal line separator
 st.title("📊 School Based Distribution of ITNs in Sierra Leone 2025")
 
 # Upload file
-uploaded_file = "sbd first_submission_clean.xlsx"
+uploaded_file = "latest_sbd1_06_10_2025 (1).xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
     
-    # Apply column calculations
-    enrollment_2025_columns = [
-        'How many pupils are enrolled in Class 1?',
-        'How many pupils are enrolled in Class 2?',
-        'How many pupils are enrolled in Class 3?',
-        'How many pupils are enrolled in Class 4?',
-        'How many pupils are enrolled in Class 5?'
-    ]
+    # Add calculated columns with direct column references
+    # Enrollment in 2024
+    if 'Enrollment' in df_original.columns:
+        df_original['Enrollment_2024'] = df_original['Enrollment']
+    else:
+        df_original['Enrollment_2024'] = 0
     
-    boys_columns = [
-        'How many boys are in Class 1?',
-        'How many boys are in Class 2?',
-        'How many boys are in Class 3?',
-        'How many boys are in Class 4?',
-        'How many boys are in Class 5?'
-    ]
+    # Enrollment in 2025 - sum of all class enrollments
+    df_original['Enrollment_2025'] = (
+        df_original['How many pupils are enrolled in Class 1?'].fillna(0) +
+        df_original['How many pupils are enrolled in Class 2?'].fillna(0) +
+        df_original['How many pupils are enrolled in Class 3?'].fillna(0) +
+        df_original['How many pupils are enrolled in Class 4?'].fillna(0) +
+        df_original['How many pupils are enrolled in Class 5?'].fillna(0)
+    )
     
-    girls_columns = [
-        'How many girls are in Class 1?',
-        'How many girls are in Class 2?',
-        'How many girls are in Class 3?',
-        'How many girls are in Class 4?',
-        'How many girls are in Class 5?'
-    ]
+    # Total boys
+    df_original['Total_Boys'] = (
+        df_original['How many boys are in Class 1?'].fillna(0) +
+        df_original['How many boys are in Class 2?'].fillna(0) +
+        df_original['How many boys are in Class 3?'].fillna(0) +
+        df_original['How many boys are in Class 4?'].fillna(0) +
+        df_original['How many boys are in Class 5?'].fillna(0)
+    )
     
-    boys_itn_columns = [
-        'How many boys in Class 1 received ITNs?',
-        'How many boys in Class 2 received ITNs?',
-        'How many boys in Class 3 received ITNs?',
-        'How many boys in Class 4 received ITNs?',
-        'How many boys in Class 5 received ITNs?'
-    ]
+    # Total girls
+    df_original['Total_Girls'] = (
+        df_original['How many girls are in Class 1?'].fillna(0) +
+        df_original['How many girls are in Class 2?'].fillna(0) +
+        df_original['How many girls are in Class 3?'].fillna(0) +
+        df_original['How many girls are in Class 4?'].fillna(0) +
+        df_original['How many girls are in Class 5?'].fillna(0)
+    )
     
-    girls_itn_columns = [
-        'How many girls in Class 1 received ITNs?',
-        'How many girls in Class 2 received ITNs?',
-        'How many girls in Class 3 received ITNs?',
-        'How many girls in Class 4 received ITNs?',
-        'How many girls in Class 5 received ITNs?'
-    ]
+    # Boys who received ITNs
+    df_original['Boys_Received_ITNs'] = (
+        df_original['How many boys in Class 1 received ITNs?'].fillna(0) +
+        df_original['How many boys in Class 2 received ITNs?'].fillna(0) +
+        df_original['How many boys in Class 3 received ITNs?'].fillna(0) +
+        df_original['How many boys in Class 4 received ITNs?'].fillna(0) +
+        df_original['How many boys in Class 5 received ITNs?'].fillna(0)
+    )
     
-    # Add calculated columns
-    df_original['Enrollment_2024'] = df_original['Enrollment'] if 'Enrollment' in df_original.columns else 0
-    df_original['Enrollment_2025'] = df_original[enrollment_2025_columns].sum(axis=1)
-    df_original['Total_Boys'] = df_original[boys_columns].sum(axis=1)
-    df_original['Total_Girls'] = df_original[girls_columns].sum(axis=1)
-    df_original['Boys_Received_ITNs'] = df_original[boys_itn_columns].sum(axis=1)
-    df_original['Girls_Received_ITNs'] = df_original[girls_itn_columns].sum(axis=1)
-    df_original['ITNs_Distributed_Without_Reserve'] = df_original['Total ITNs distributed'] if 'Total ITNs distributed' in df_original.columns else 0
-    df_original['ITNs_Distributed_With_Reserve'] = df_original['Total ITNs distributed'].fillna(0) + df_original['ITNs left at the school for pupils who were absent.'].fillna(0)
+    # Girls who received ITNs
+    df_original['Girls_Received_ITNs'] = (
+        df_original['How many girls in Class 1 received ITNs?'].fillna(0) +
+        df_original['How many girls in Class 2 received ITNs?'].fillna(0) +
+        df_original['How many girls in Class 3 received ITNs?'].fillna(0) +
+        df_original['How many girls in Class 4 received ITNs?'].fillna(0) +
+        df_original['How many girls in Class 5 received ITNs?'].fillna(0)
+    )
+    
+    # ITNs distributed
+    df_original['ITNs_Distributed_Without_Reserve'] = df_original['Total ITNs distributed'].fillna(0)
+    df_original['ITNs_Distributed_With_Reserve'] = (
+        df_original['Total ITNs distributed'].fillna(0) + 
+        df_original['ITNs left at the school for pupils who were absent.'].fillna(0)
+    )
     
     # Load shapefile
     try:
@@ -714,9 +742,7 @@ if uploaded_file:
 
 
 
-
-# Part 3
-
+# part 3
 
 
 # Enhanced Gender Analysis with ITN Recipients
@@ -802,12 +828,23 @@ if uploaded_file:
     st.subheader("📈 Enrollment Growth Analysis: 2024 vs 2025")
     
     if 'Enrollment' in extracted_df.columns:
-        # Calculate enrollment growth by district
+        # Calculate enrollment growth by district using direct column calculations
         enrollment_growth = []
         for district in extracted_df['District'].dropna().unique():
             district_data = extracted_df[extracted_df['District'] == district]
+            
+            # 2024 enrollment
             enrollment_2024 = district_data['Enrollment'].fillna(0).sum()
-            enrollment_2025 = district_data['Enrollment_2025'].fillna(0).sum()
+            
+            # 2025 enrollment - direct calculation
+            enrollment_2025 = (
+                district_data['How many pupils are enrolled in Class 1?'].fillna(0).sum() +
+                district_data['How many pupils are enrolled in Class 2?'].fillna(0).sum() +
+                district_data['How many pupils are enrolled in Class 3?'].fillna(0).sum() +
+                district_data['How many pupils are enrolled in Class 4?'].fillna(0).sum() +
+                district_data['How many pupils are enrolled in Class 5?'].fillna(0).sum()
+            )
+            
             growth = ((enrollment_2025 - enrollment_2024) / enrollment_2024 * 100) if enrollment_2024 > 0 else 0
             
             enrollment_growth.append({
@@ -852,13 +889,31 @@ if uploaded_file:
     # New: ITN Distribution Efficiency Analysis
     st.subheader("🎯 ITN Distribution Efficiency Analysis")
     
-    # Calculate efficiency metrics
+    # Calculate efficiency metrics with direct column calculations
     efficiency_data = []
     for district in extracted_df['District'].dropna().unique():
         district_data = extracted_df[extracted_df['District'] == district]
         
-        total_distributed = district_data['ITNs_Distributed_Without_Reserve'].fillna(0).sum()
-        total_received = district_data['Boys_Received_ITNs'].fillna(0).sum() + district_data['Girls_Received_ITNs'].fillna(0).sum()
+        total_distributed = district_data['Total ITNs distributed'].fillna(0).sum()
+        
+        # Calculate total received using direct column sums
+        boys_received = (
+            district_data['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        girls_received = (
+            district_data['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        total_received = boys_received + girls_received
         efficiency = (total_received / total_distributed * 100) if total_distributed > 0 else 0
         
         efficiency_data.append({
@@ -906,15 +961,44 @@ if uploaded_file:
     # New: Gender Equity Score Analysis
     st.subheader("⚖️ Gender Equity Score Analysis")
     
-    # Calculate gender equity scores
+    # Calculate gender equity scores with direct column calculations
     gender_equity_data = []
     for district in extracted_df['District'].dropna().unique():
         district_data = extracted_df[extracted_df['District'] == district]
         
-        boys_itn = district_data['Boys_Received_ITNs'].fillna(0).sum()
-        girls_itn = district_data['Girls_Received_ITNs'].fillna(0).sum()
-        total_boys = district_data['Total_Boys'].fillna(0).sum()
-        total_girls = district_data['Total_Girls'].fillna(0).sum()
+        # Direct calculation of boys and girls who received ITNs
+        boys_itn = (
+            district_data['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        girls_itn = (
+            district_data['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        # Direct calculation of total boys and girls
+        total_boys = (
+            district_data['How many boys are in Class 1?'].fillna(0).sum() +
+            district_data['How many boys are in Class 2?'].fillna(0).sum() +
+            district_data['How many boys are in Class 3?'].fillna(0).sum() +
+            district_data['How many boys are in Class 4?'].fillna(0).sum() +
+            district_data['How many boys are in Class 5?'].fillna(0).sum()
+        )
+        
+        total_girls = (
+            district_data['How many girls are in Class 1?'].fillna(0).sum() +
+            district_data['How many girls are in Class 2?'].fillna(0).sum() +
+            district_data['How many girls are in Class 3?'].fillna(0).sum() +
+            district_data['How many girls are in Class 4?'].fillna(0).sum() +
+            district_data['How many girls are in Class 5?'].fillna(0).sum()
+        )
         
         boys_coverage = (boys_itn / total_boys * 100) if total_boys > 0 else 0
         girls_coverage = (girls_itn / total_girls * 100) if total_girls > 0 else 0
@@ -1006,15 +1090,38 @@ if uploaded_file:
         district_chiefdoms = district_data['Chiefdom'].dropna().unique()
         
         if len(district_chiefdoms) > 0:
-            # Calculate enhanced metrics by chiefdom
+            # Calculate enhanced metrics by chiefdom with direct column calculations
             chiefdom_analysis = []
             
             for chiefdom in district_chiefdoms:
                 chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
                 
-                enrollment_2025 = chiefdom_data['Enrollment_2025'].fillna(0).sum()
-                boys_itn = chiefdom_data['Boys_Received_ITNs'].fillna(0).sum()
-                girls_itn = chiefdom_data['Girls_Received_ITNs'].fillna(0).sum()
+                # Direct calculation of enrollment 2025
+                enrollment_2025 = (
+                    chiefdom_data['How many pupils are enrolled in Class 1?'].fillna(0).sum() +
+                    chiefdom_data['How many pupils are enrolled in Class 2?'].fillna(0).sum() +
+                    chiefdom_data['How many pupils are enrolled in Class 3?'].fillna(0).sum() +
+                    chiefdom_data['How many pupils are enrolled in Class 4?'].fillna(0).sum() +
+                    chiefdom_data['How many pupils are enrolled in Class 5?'].fillna(0).sum()
+                )
+                
+                # Direct calculation of boys and girls who received ITNs
+                boys_itn = (
+                    chiefdom_data['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+                )
+                
+                girls_itn = (
+                    chiefdom_data['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+                    chiefdom_data['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+                )
+                
                 total_beneficiaries = boys_itn + girls_itn
                 coverage = (total_beneficiaries / enrollment_2025 * 100) if enrollment_2025 > 0 else 0
                 
@@ -1086,6 +1193,174 @@ if uploaded_file:
             
             st.divider()
     
+    # New: Class-wise Analysis
+    st.subheader("📚 Class-wise ITN Distribution Analysis")
+    
+    # Calculate class-wise totals
+    class_data = []
+    for i in range(1, 6):
+        enrollment = extracted_df[f'How many pupils are enrolled in Class {i}?'].fillna(0).sum()
+        boys_itn = extracted_df[f'How many boys in Class {i} received ITNs?'].fillna(0).sum()
+        girls_itn = extracted_df[f'How many girls in Class {i} received ITNs?'].fillna(0).sum()
+        total_itn = boys_itn + girls_itn
+        coverage = (total_itn / enrollment * 100) if enrollment > 0 else 0
+        
+        class_data.append({
+            'Class': f'Class {i}',
+            'Enrollment': enrollment,
+            'Boys_ITN': boys_itn,
+            'Girls_ITN': girls_itn,
+            'Total_ITN': total_itn,
+            'Coverage': coverage
+        })
+    
+    class_df = pd.DataFrame(class_data)
+    
+    # Create class-wise visualization
+    fig_class, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    
+    # Left chart: Enrollment vs ITN Recipients by Class
+    x = np.arange(len(class_df))
+    width = 0.35
+    
+    bars1 = ax1.bar(x - width/2, class_df['Enrollment'], width, label='Enrollment', 
+                    color='#3498DB', edgecolor='navy', linewidth=1)
+    bars2 = ax1.bar(x + width/2, class_df['Total_ITN'], width, label='ITN Recipients',
+                    color='#2ECC71', edgecolor='darkgreen', linewidth=1)
+    
+    ax1.set_title('Class-wise Enrollment vs ITN Recipients', fontsize=16, fontweight='bold')
+    ax1.set_xlabel('Class', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Number of Students', fontsize=12, fontweight='bold')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(class_df['Class'])
+    ax1.legend(fontsize=12)
+    ax1.grid(axis='y', alpha=0.3, linestyle='--')
+    
+    # Add value labels
+    for bars in [bars1, bars2]:
+        for bar in bars:
+            height = bar.get_height()
+            ax1.annotate(f'{int(height):,}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3),
+                        textcoords="offset points",
+                        ha='center', va='bottom', fontsize=10, fontweight='bold')
+    
+    # Right chart: Gender distribution by class
+    x2 = np.arange(len(class_df))
+    bars3 = ax2.bar(x2 - width/2, class_df['Boys_ITN'], width, label='Boys',
+                    color='#4A90E2', edgecolor='navy', linewidth=1)
+    bars4 = ax2.bar(x2 + width/2, class_df['Girls_ITN'], width, label='Girls',
+                    color='#E91E63', edgecolor='darkred', linewidth=1)
+    
+    ax2.set_title('Gender Distribution of ITN Recipients by Class', fontsize=16, fontweight='bold')
+    ax2.set_xlabel('Class', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Number of ITN Recipients', fontsize=12, fontweight='bold')
+    ax2.set_xticks(x2)
+    ax2.set_xticklabels(class_df['Class'])
+    ax2.legend(fontsize=12)
+    ax2.grid(axis='y', alpha=0.3, linestyle='--')
+    
+    plt.tight_layout()
+    st.pyplot(fig_class)
+    
+    # Save class analysis chart
+    map_images['class_analysis'] = save_map_as_png(fig_class, "Class_wise_Analysis")
+    
+    # New: Top/Bottom Performing Analysis
+    st.subheader("🏆 Top and Bottom Performing Analysis")
+    
+    # Create performance dataframe
+    performance_data = []
+    for district in extracted_df['District'].dropna().unique():
+        district_data = extracted_df[extracted_df['District'] == district]
+        
+        # Calculate metrics
+        enrollment_2025 = (
+            district_data['How many pupils are enrolled in Class 1?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 2?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 3?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 4?'].fillna(0).sum() +
+            district_data['How many pupils are enrolled in Class 5?'].fillna(0).sum()
+        )
+        
+        boys_itn = (
+            district_data['How many boys in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many boys in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        girls_itn = (
+            district_data['How many girls in Class 1 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 2 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 3 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 4 received ITNs?'].fillna(0).sum() +
+            district_data['How many girls in Class 5 received ITNs?'].fillna(0).sum()
+        )
+        
+        total_beneficiaries = boys_itn + girls_itn
+        coverage = (total_beneficiaries / enrollment_2025 * 100) if enrollment_2025 > 0 else 0
+        
+        performance_data.append({
+            'District': district,
+            'Coverage': coverage,
+            'Total_Beneficiaries': total_beneficiaries,
+            'Enrollment': enrollment_2025
+        })
+    
+    performance_df = pd.DataFrame(performance_data)
+    performance_df = performance_df.sort_values('Coverage', ascending=False)
+    
+    # Show top 5 and bottom 5
+    top_5 = performance_df.head(5)
+    bottom_5 = performance_df.tail(5)
+    
+    fig_performance, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    
+    # Top 5 districts
+    bars1 = ax1.bar(top_5['District'], top_5['Coverage'], color='#2ECC71', 
+                    edgecolor='darkgreen', linewidth=2)
+    ax1.set_title('Top 5 Performing Districts', fontsize=16, fontweight='bold')
+    ax1.set_xlabel('District', fontsize=12, fontweight='bold')
+    ax1.set_ylabel('Coverage (%)', fontsize=12, fontweight='bold')
+    ax1.set_ylim(0, 100)
+    ax1.grid(axis='y', alpha=0.3, linestyle='--')
+    
+    # Add value labels
+    for bar in bars1:
+        height = bar.get_height()
+        ax1.annotate(f'{height:.1f}%',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=12, fontweight='bold')
+    
+    # Bottom 5 districts
+    bars2 = ax2.bar(bottom_5['District'], bottom_5['Coverage'], color='#E74C3C',
+                    edgecolor='darkred', linewidth=2)
+    ax2.set_title('Bottom 5 Performing Districts', fontsize=16, fontweight='bold')
+    ax2.set_xlabel('District', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Coverage (%)', fontsize=12, fontweight='bold')
+    ax2.set_ylim(0, max(bottom_5['Coverage']) * 1.2)
+    ax2.grid(axis='y', alpha=0.3, linestyle='--')
+    
+    # Add value labels
+    for bar in bars2:
+        height = bar.get_height()
+        ax2.annotate(f'{height:.1f}%',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=12, fontweight='bold')
+    
+    plt.tight_layout()
+    st.pyplot(fig_performance)
+    
+    # Save performance chart
+    map_images['performance_analysis'] = save_map_as_png(fig_performance, "Performance_Analysis")
+    
     # Final comprehensive report export
     st.subheader("📥 Export Enhanced Reports")
     st.write("Download comprehensive analysis reports with all enhanced visualizations and metrics:")
@@ -1105,6 +1380,14 @@ if uploaded_file:
         # Add gender equity analysis if available
         if 'equity_df' in locals():
             equity_df.to_excel(writer, sheet_name='Gender Equity', index=False)
+        
+        # Add class analysis
+        if 'class_df' in locals():
+            class_df.to_excel(writer, sheet_name='Class Analysis', index=False)
+        
+        # Add performance analysis
+        if 'performance_df' in locals():
+            performance_df.to_excel(writer, sheet_name='Performance Analysis', index=False)
     
     excel_data = excel_buffer.getvalue()
     
@@ -1124,6 +1407,8 @@ if uploaded_file:
     - ITN Recipients: {summaries['overall']['total_beneficiaries']:,}
     - Overall Coverage: {summaries['overall']['coverage']:.1f}%
     - Gender Equity Ratio: {summaries['overall']['gender_ratio']:.1f}%
+    - ITNs Distributed: {summaries['overall']['total_itn_distributed']:,}
+    - ITNs with Reserve: {summaries['overall']['total_itn_with_reserve']:,}
     """)
     
     # Display saved visualizations count
