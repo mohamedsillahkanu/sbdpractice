@@ -359,12 +359,6 @@ def generate_summaries(df):
     
     return summaries
 
-
-
-
-#2
-
-
 # Logo Section - Clean 4 Logo Layout
 col1, col2, col3, col4 = st.columns(4)
 
@@ -434,6 +428,42 @@ uploaded_file = "latest_sbd1_06_10_2025 (1).xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
+    
+    # Convert numeric columns to ensure they're not text
+    numeric_columns = [
+        'How many pupils are enrolled in Class 1?',
+        'How many pupils are enrolled in Class 2?',
+        'How many pupils are enrolled in Class 3?',
+        'How many pupils are enrolled in Class 4?',
+        'How many pupils are enrolled in Class 5?',
+        'How many boys are in Class 1?',
+        'How many boys are in Class 2?',
+        'How many boys are in Class 3?',
+        'How many boys are in Class 4?',
+        'How many boys are in Class 5?',
+        'How many girls are in Class 1?',
+        'How many girls are in Class 2?',
+        'How many girls are in Class 3?',
+        'How many girls are in Class 4?',
+        'How many girls are in Class 5?',
+        'How many boys in Class 1 received ITNs?',
+        'How many boys in Class 2 received ITNs?',
+        'How many boys in Class 3 received ITNs?',
+        'How many boys in Class 4 received ITNs?',
+        'How many boys in Class 5 received ITNs?',
+        'How many girls in Class 1 received ITNs?',
+        'How many girls in Class 2 received ITNs?',
+        'How many girls in Class 3 received ITNs?',
+        'How many girls in Class 4 received ITNs?',
+        'How many girls in Class 5 received ITNs?',
+        'Total ITNs distributed',
+        'ITNs left at the school for pupils who were absent.'
+    ]
+    
+    # Convert to numeric, replacing any non-numeric values with 0
+    for col in numeric_columns:
+        if col in df_original.columns:
+            df_original[col] = pd.to_numeric(df_original[col], errors='coerce').fillna(0)
     
     # Add calculated columns with direct column references
     # Enrollment in 2024
@@ -741,6 +771,18 @@ if uploaded_file:
     # Generate comprehensive summaries with updated calculations
     summaries = generate_summaries(extracted_df)
     
+    # Add Data Quality Check
+    st.sidebar.subheader("📊 Data Quality Check")
+    st.sidebar.write(f"Total Records: {len(extracted_df)}")
+    st.sidebar.write(f"Districts with data: {summaries['overall']['total_districts']}")
+    st.sidebar.write(f"Total ITN Recipients: {summaries['overall']['total_beneficiaries']:,}")
+    
+    if summaries['overall']['total_beneficiaries'] == 0:
+        st.sidebar.warning("⚠️ No ITN recipient data found!")
+        st.sidebar.write("Check if ITN columns have data")
+    else:
+        st.sidebar.success(f"✅ Found {summaries['overall']['total_beneficiaries']:,} ITN recipients")
+    
     # Display Enhanced Overall Summary
     st.subheader("📊 Enhanced Overall Summary - 2025 Analysis")
     col1, col2, col3, col4 = st.columns(4)
@@ -773,14 +815,8 @@ if uploaded_file:
         st.metric("ITNs Remaining", f"{summaries['overall']['itn_remaining']:,}")
     with col12:
         st.metric("Gender Ratio", f"{summaries['overall']['gender_ratio']:.1f}%")
-
-
-
-
-#3
-
-
-# Enhanced Gender Analysis with ITN Recipients
+    
+    # Enhanced Gender Analysis with ITN Recipients
     st.subheader("👫 Enhanced Gender Analysis - ITN Recipients 2025")
     
     # Check if there's data to display
@@ -1429,7 +1465,7 @@ if uploaded_file:
     ax2.set_title('Bottom 5 Performing Districts', fontsize=16, fontweight='bold')
     ax2.set_xlabel('District', fontsize=12, fontweight='bold')
     ax2.set_ylabel('Coverage (%)', fontsize=12, fontweight='bold')
-    ax2.set_ylim(0, max(bottom_5['Coverage']) * 1.2)
+    ax2.set_ylim(0, max(bottom_5['Coverage']) * 1.2 if bottom_5['Coverage'].max() > 0 else 10)
     ax2.grid(axis='y', alpha=0.3, linestyle='--')
     
     # Add value labels
@@ -1505,4 +1541,4 @@ if uploaded_file:
             for map_name in map_images.keys():
                 st.write(f"• {map_name.replace('_', ' ').title()}")
 else:
-    st.error("Please ensure the Excel file 'latest_sbd1_06_10_2025 (1).xlsx' is in the same directory as this script.")
+    st.error("error")
