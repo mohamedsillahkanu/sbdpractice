@@ -361,7 +361,8 @@ def generate_summaries(df):
 
 
 
-# part 2
+
+#2
 
 
 # Logo Section - Clean 4 Logo Layout
@@ -429,7 +430,7 @@ st.markdown("---")  # Add a horizontal line separator
 st.title("📊 School Based Distribution of ITNs in Sierra Leone 2025")
 
 # Upload file
-uploaded_file = "sbd first_submission_clean.xlsx"
+uploaded_file = "latest_sbd1_06_10_2025 (1).xlsx"
 if uploaded_file:
     # Read the uploaded Excel file
     df_original = pd.read_excel(uploaded_file)
@@ -689,6 +690,39 @@ if uploaded_file:
     st.subheader("📄 Original Data Sample")
     st.dataframe(df_original.head())
     
+    # Debug section to check data
+    st.subheader("🔍 Data Verification")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Sample ITN Recipients Data (Boys)**")
+        for i in range(1, 6):
+            col_name = f'How many boys in Class {i} received ITNs?'
+            if col_name in extracted_df.columns:
+                non_zero = extracted_df[extracted_df[col_name] > 0][col_name].count()
+                total_sum = extracted_df[col_name].fillna(0).sum()
+                st.write(f"Class {i}: Sum={total_sum}, Non-zero entries={non_zero}")
+    
+    with col2:
+        st.write("**Sample ITN Recipients Data (Girls)**")
+        for i in range(1, 6):
+            col_name = f'How many girls in Class {i} received ITNs?'
+            if col_name in extracted_df.columns:
+                non_zero = extracted_df[extracted_df[col_name] > 0][col_name].count()
+                total_sum = extracted_df[col_name].fillna(0).sum()
+                st.write(f"Class {i}: Sum={total_sum}, Non-zero entries={non_zero}")
+    
+    # Check enrollment data
+    st.write("**Enrollment Data Check**")
+    total_enrollment_check = 0
+    for i in range(1, 6):
+        col_name = f'How many pupils are enrolled in Class {i}?'
+        if col_name in extracted_df.columns:
+            class_sum = extracted_df[col_name].fillna(0).sum()
+            total_enrollment_check += class_sum
+            st.write(f"Class {i} enrollment: {class_sum}")
+    st.write(f"**Total enrollment across all classes: {total_enrollment_check}**")
+    
     # Display Extracted Data with new calculated columns
     st.subheader("📋 Enhanced Extracted Data with 2025 Calculations")
     display_cols = ['District', 'Chiefdom', 'School Name', 'Enrollment_2025', 'Total_Boys', 'Total_Girls', 
@@ -742,42 +776,94 @@ if uploaded_file:
 
 
 
-# part 3
+
+#3
 
 
 # Enhanced Gender Analysis with ITN Recipients
     st.subheader("👫 Enhanced Gender Analysis - ITN Recipients 2025")
     
-    # Overall gender distribution pie chart for ITN recipients
-    fig_gender, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
-    
-    # Left pie chart - Boys vs Girls who received ITNs
-    labels = ['Boys ITN', 'Girls ITN']
-    sizes = [summaries['overall']['total_boys_itn'], summaries['overall']['total_girls_itn']]
-    colors = ['#4A90E2', '#F39C12']
-    
-    wedges, texts, autotexts = ax1.pie(sizes, labels=labels, autopct='%1.1f%%', 
-                                        colors=colors, startangle=90)
-    ax1.set_title('ITN Recipients by Gender', fontsize=16, fontweight='bold', pad=20)
-    plt.setp(autotexts, size=14, weight="bold")
-    plt.setp(texts, size=12, weight="bold")
-    
-    # Right pie chart - Coverage vs Remaining
-    labels2 = ['Covered', 'Not Covered']
-    sizes2 = [summaries['overall']['total_beneficiaries'], summaries['overall']['itn_remaining']]
-    colors2 = ['#27AE60', '#E74C3C']
-    
-    wedges2, texts2, autotexts2 = ax2.pie(sizes2, labels=labels2, autopct='%1.1f%%',
-                                          colors=colors2, startangle=90)
-    ax2.set_title('Overall ITN Coverage Status', fontsize=16, fontweight='bold', pad=20)
-    plt.setp(autotexts2, size=14, weight="bold")
-    plt.setp(texts2, size=12, weight="bold")
-    
-    plt.tight_layout()
-    st.pyplot(fig_gender)
-    
-    # Save gender charts
-    map_images['gender_overall'] = save_map_as_png(fig_gender, "Enhanced_Gender_Distribution")
+    # Check if there's data to display
+    if summaries['overall']['total_boys_itn'] > 0 or summaries['overall']['total_girls_itn'] > 0:
+        # Overall gender distribution pie chart for ITN recipients
+        fig_gender, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+        
+        # Left pie chart - Boys vs Girls who received ITNs
+        labels = ['Boys ITN', 'Girls ITN']
+        sizes = [summaries['overall']['total_boys_itn'], summaries['overall']['total_girls_itn']]
+        colors = ['#4A90E2', '#F39C12']
+        
+        wedges, texts, autotexts = ax1.pie(sizes, labels=labels, autopct='%1.1f%%', 
+                                            colors=colors, startangle=90)
+        ax1.set_title('ITN Recipients by Gender', fontsize=16, fontweight='bold', pad=20)
+        plt.setp(autotexts, size=14, weight="bold")
+        plt.setp(texts, size=12, weight="bold")
+        
+        # Right pie chart - Coverage vs Remaining
+        labels2 = ['Covered', 'Not Covered']
+        sizes2 = [summaries['overall']['total_beneficiaries'], summaries['overall']['itn_remaining']]
+        colors2 = ['#27AE60', '#E74C3C']
+        
+        if summaries['overall']['total_enrollment_2025'] > 0:
+            wedges2, texts2, autotexts2 = ax2.pie(sizes2, labels=labels2, autopct='%1.1f%%',
+                                                  colors=colors2, startangle=90)
+            ax2.set_title('Overall ITN Coverage Status', fontsize=16, fontweight='bold', pad=20)
+            plt.setp(autotexts2, size=14, weight="bold")
+            plt.setp(texts2, size=12, weight="bold")
+        else:
+            ax2.text(0.5, 0.5, 'No enrollment data available', 
+                    ha='center', va='center', transform=ax2.transAxes, fontsize=14)
+            ax2.set_xlim(-1, 1)
+            ax2.set_ylim(-1, 1)
+        
+        plt.tight_layout()
+        st.pyplot(fig_gender)
+        
+        # Save gender charts
+        map_images['gender_overall'] = save_map_as_png(fig_gender, "Enhanced_Gender_Distribution")
+    else:
+        st.warning("No ITN recipient data available. The data shows 0 boys and 0 girls have received ITNs.")
+        
+        # Show enrollment gender distribution instead
+        st.subheader("📊 Enrollment Gender Distribution (Alternative View)")
+        
+        # Calculate total boys and girls enrolled
+        total_boys_enrolled = 0
+        total_girls_enrolled = 0
+        
+        for i in range(1, 6):
+            boys_col = f'How many boys are in Class {i}?'
+            girls_col = f'How many girls are in Class {i}?'
+            
+            if boys_col in extracted_df.columns:
+                total_boys_enrolled += extracted_df[boys_col].fillna(0).sum()
+            if girls_col in extracted_df.columns:
+                total_girls_enrolled += extracted_df[girls_col].fillna(0).sum()
+        
+        if total_boys_enrolled > 0 or total_girls_enrolled > 0:
+            fig_enrollment_gender, ax = plt.subplots(figsize=(10, 8))
+            labels = ['Boys Enrolled', 'Girls Enrolled']
+            sizes = [total_boys_enrolled, total_girls_enrolled]
+            colors = ['#4A90E2', '#F39C12']
+            
+            wedges, texts, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%',
+                                              colors=colors, startangle=90)
+            ax.set_title('Student Enrollment by Gender', fontsize=16, fontweight='bold', pad=20)
+            plt.setp(autotexts, size=14, weight="bold")
+            plt.setp(texts, size=12, weight="bold")
+            
+            plt.tight_layout()
+            st.pyplot(fig_enrollment_gender)
+            
+            # Display metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Boys Enrolled", f"{int(total_boys_enrolled):,}")
+            with col2:
+                st.metric("Total Girls Enrolled", f"{int(total_girls_enrolled):,}")
+            with col3:
+                gender_ratio = (total_girls_enrolled / total_boys_enrolled * 100) if total_boys_enrolled > 0 else 0
+                st.metric("Gender Ratio (G:B)", f"{gender_ratio:.1f}%")
     
     # Enhanced District Analysis with 2025 data
     st.subheader("📊 Enhanced District Analysis - 2025 Enrollment vs ITN Distribution")
