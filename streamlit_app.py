@@ -376,7 +376,7 @@ if uploaded_file:
         gdf = None
     
     # Create empty lists to store extracted data
-    districts, chiefdoms, phu_names, community_names, school_names = [], [], [], [], []
+    districts, chiefdoms, phu_names, community_names, school_names, enrollment_values = [], [], [], [], [], []
     
     # Process each row in the "Scan QR code" column
     for qr_text in df_original["Scan QR code"]:
@@ -416,7 +416,7 @@ if uploaded_file:
         "PHU Name": phu_names,
         "Community Name": community_names,
         "School Name": school_names,
-        "Enrollment": enrollment
+        "Enrollment": enrollment_values
     })
     
     # Add all other columns from the original DataFrame
@@ -441,7 +441,7 @@ if uploaded_file:
         "PHU Name": ["District", "Chiefdom", "PHU Name"],
         "Community Name": ["District", "Chiefdom", "PHU Name", "Community Name"],
         "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name"],
-        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name", "Enrollment"]
+        "Enrollment": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name", "Enrollment"]
     }
     
     # Initialize filtered dataframe with the full dataset
