@@ -563,269 +563,143 @@ if uploaded_file:
         st.divider()
         
         # NOW THE INDIVIDUAL DISTRICT MAPS
-        # Define specific districts for left and right maps
-        left_district = "BO"
-        right_district = "BOMBALI"
+        # Get all unique districts from the data for comprehensive mapping
+        all_districts = extracted_df['District'].dropna().unique()
         
-        # BO DISTRICT MAP - Full width
-        st.write(f"**{left_district} District - All Chiefdoms**")
-        
-        # Filter shapefile for BO district
-        bo_gdf = gdf[gdf['FIRST_DNAM'] == left_district].copy()
-        
-        if len(bo_gdf) > 0:
-            # Filter data for BO district to get GPS coordinates
-            bo_data = extracted_df[extracted_df["District"] == left_district].copy()
+        for district_name in all_districts:
+            st.write(f"**{district_name} District - All Chiefdoms with GPS Coordinates**")
             
-            # Create the BO district plot
-            fig_bo, ax_bo = plt.subplots(figsize=(14, 8))
+            # Filter shapefile for this district
+            district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
             
-            # Plot chiefdom boundaries in white with black edges
-            bo_gdf.plot(ax=ax_bo, color='white', edgecolor='black', alpha=0.8, linewidth=2)
-            
-            # Extract and plot GPS coordinates FIRST
-            coords_extracted = []
-            if len(bo_data) > 0 and "GPS Location" in bo_data.columns:
-                gps_data = bo_data["GPS Location"].dropna()
+            if len(district_gdf) > 0:
+                # Filter data for this district to get GPS coordinates
+                district_data = extracted_df[extracted_df["District"] == district_name].copy()
                 
-                st.write(f"**Debug: Found {len(gps_data)} GPS entries for BO District**")
+                # Create the district plot
+                fig_district, ax_district = plt.subplots(figsize=(14, 8))
                 
-                for idx, gps_val in enumerate(gps_data):
-                    if pd.notna(gps_val):
-                        gps_str = str(gps_val).strip()
-                        st.write(f"GPS {idx+1}: {gps_str}")
-                        
-                        # Handle the specific format: 8.6103181,-12.2029534
-                        if ',' in gps_str:
-                            try:
-                                parts = gps_str.split(',')
-                                if len(parts) == 2:
-                                    lat = float(parts[0].strip())
-                                    lon = float(parts[1].strip())
-                                    
-                                    # Check if coordinates are in valid range for Sierra Leone
-                                    if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
-                                        coords_extracted.append([lat, lon])
-                                        st.write(f"✅ Valid coordinates: {lat}, {lon}")
-                                    else:
-                                        st.write(f"❌ Invalid coordinates (outside Sierra Leone): {lat}, {lon}")
-                            except ValueError as e:
-                                st.write(f"❌ Could not parse coordinates: {gps_str} - Error: {e}")
+                # Plot chiefdom boundaries in white with black edges
+                district_gdf.plot(ax=ax_district, color='white', edgecolor='black', alpha=0.8, linewidth=2)
                 
-                st.write(f"**Total valid coordinates extracted: {len(coords_extracted)}**")
-            
-            # Plot GPS points on the shapefile
-            if coords_extracted:
-                lats, lons = zip(*coords_extracted)
+                # Extract and plot GPS coordinates
+                coords_extracted = []
+                if len(district_data) > 0 and "GPS Location" in district_data.columns:
+                    gps_data = district_data["GPS Location"].dropna()
+                    
+                    st.write(f"**Debug: Found {len(gps_data)} GPS entries for {district_name} District**")
+                    
+                    for idx, gps_val in enumerate(gps_data):
+                        if pd.notna(gps_val):
+                            gps_str = str(gps_val).strip()
+                            
+                            # Handle the specific format: 8.6103181,-12.2029534
+                            if ',' in gps_str:
+                                try:
+                                    parts = gps_str.split(',')
+                                    if len(parts) == 2:
+                                        lat = float(parts[0].strip())
+                                        lon = float(parts[1].strip())
+                                        
+                                        # Check if coordinates are in valid range for Sierra Leone
+                                        if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
+                                            coords_extracted.append([lat, lon])
+                                            st.write(f"✅ Valid coordinates: {lat}, {lon}")
+                                        else:
+                                            st.write(f"❌ Invalid coordinates (outside Sierra Leone): {lat}, {lon}")
+                                except ValueError as e:
+                                    st.write(f"❌ Could not parse coordinates: {gps_str} - Error: {e}")
+                    
+                    st.write(f"**Total valid coordinates extracted: {len(coords_extracted)}**")
                 
-                # Plot GPS points with high visibility
-                scatter = ax_bo.scatter(
-                    lons, lats,
-                    c='red',
-                    s=150,
-                    alpha=1.0,
-                    edgecolors='white',
-                    linewidth=3,
-                    zorder=100,  # Very high z-order to ensure visibility
-                    label=f'Schools ({len(coords_extracted)})',
-                    marker='o'
-                )
-                
-                # Add text labels for each point
-                for i, (lat, lon) in enumerate(coords_extracted):
-                    ax_bo.annotate(f'S{i+1}', 
-                                  (lon, lat),
-                                  xytext=(5, 5), 
-                                  textcoords='offset points',
-                                  fontsize=10,
-                                  fontweight='bold',
-                                  color='red',
-                                  bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
-                
-                # Show coordinate range for verification
-                st.write(f"**Coordinate range:** Lat: {min(lats):.4f} to {max(lats):.4f}, Lon: {min(lons):.4f} to {max(lons):.4f}")
-                
-                # Set map extent to include all points with padding
-                margin = 0.05
-                ax_bo.set_xlim(min(lons) - margin, max(lons) + margin)
-                ax_bo.set_ylim(min(lats) - margin, max(lats) + margin)
-                
-            # Add chiefdom labels
-            for idx, row in bo_gdf.iterrows():
-                if 'FIRST_CHIE' in row and pd.notna(row['FIRST_CHIE']):
-                    centroid = row.geometry.centroid
-                    ax_bo.annotate(
-                        row['FIRST_CHIE'], 
-                        (centroid.x, centroid.y),
-                        xytext=(5, 5), 
-                        textcoords='offset points',
-                        fontsize=9,
-                        ha='left',
-                        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7)
+                # Plot GPS points on the shapefile
+                if coords_extracted:
+                    lats, lons = zip(*coords_extracted)
+                    
+                    # Plot GPS points with high visibility
+                    scatter = ax_district.scatter(
+                        lons, lats,
+                        c='red',
+                        s=150,
+                        alpha=1.0,
+                        edgecolors='white',
+                        linewidth=3,
+                        zorder=100,  # Very high z-order to ensure visibility
+                        label=f'Schools ({len(coords_extracted)})',
+                        marker='o'
                     )
-            
-            # Customize plot
-            title_text = f'{left_district} District - Chiefdoms: {len(bo_gdf)}'
-            if coords_extracted:
-                title_text += f' | GPS Points: {len(coords_extracted)}'
-            ax_bo.set_title(title_text, fontsize=16, fontweight='bold')
-            ax_bo.set_xlabel('Longitude', fontsize=12)
-            ax_bo.set_ylabel('Latitude', fontsize=12)
-            
-            # Add legend if GPS points exist
-            if coords_extracted:
-                ax_bo.legend(fontsize=12, loc='best')
-            
-            # Add grid for reference
-            ax_bo.grid(True, alpha=0.3, linestyle='--')
-            
-            plt.tight_layout()
-            st.pyplot(fig_bo)
-            
-            # Save BO district map
-            map_images['bo_district'] = save_map_as_png(fig_bo, f"{left_district}_District_Map")
-            
-            # Display chiefdoms list
-            if 'FIRST_CHIE' in bo_gdf.columns:
-                chiefdoms = bo_gdf['FIRST_CHIE'].dropna().tolist()
-                st.write(f"**Chiefdoms in {left_district} District ({len(chiefdoms)}):**")
-                chiefdom_cols = st.columns(3)
-                for i, chiefdom in enumerate(chiefdoms):
-                    with chiefdom_cols[i % 3]:
-                        st.write(f"• {chiefdom}")
-        else:
-            st.warning(f"No chiefdoms found for {left_district} district in shapefile")
-        
-        st.divider()
-        
-        # BOMBALI DISTRICT MAP - Full width
-        st.write(f"**{right_district} District - All Chiefdoms**")
-        
-        # Filter shapefile for BOMBALI district
-        bombali_gdf = gdf[gdf['FIRST_DNAM'] == right_district].copy()
-        
-        if len(bombali_gdf) > 0:
-            # Filter data for BOMBALI district to get GPS coordinates
-            bombali_data = extracted_df[extracted_df["District"] == right_district].copy()
-            
-            # Create the BOMBALI district plot
-            fig_bombali, ax_bombali = plt.subplots(figsize=(14, 8))
-            
-            # Plot chiefdom boundaries in white with black edges
-            bombali_gdf.plot(ax=ax_bombali, color='white', edgecolor='black', alpha=0.8, linewidth=2)
-            
-            # Extract and plot GPS coordinates FIRST
-            coords_extracted = []
-            if len(bombali_data) > 0 and "GPS Location" in bombali_data.columns:
-                gps_data = bombali_data["GPS Location"].dropna()
+                    
+                    # Add text labels for each point
+                    for i, (lat, lon) in enumerate(coords_extracted):
+                        ax_district.annotate(f'S{i+1}', 
+                                           (lon, lat),
+                                           xytext=(5, 5), 
+                                           textcoords='offset points',
+                                           fontsize=10,
+                                           fontweight='bold',
+                                           color='red',
+                                           bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
+                    
+                    # Show coordinate range for verification
+                    st.write(f"**Coordinate range:** Lat: {min(lats):.4f} to {max(lats):.4f}, Lon: {min(lons):.4f} to {max(lons):.4f}")
+                    
+                    # Set map extent to include all points with padding
+                    margin = 0.05
+                    ax_district.set_xlim(min(lons) - margin, max(lons) + margin)
+                    ax_district.set_ylim(min(lats) - margin, max(lats) + margin)
+                else:
+                    # If no GPS coordinates, show the district boundaries with default extent
+                    bounds = district_gdf.total_bounds
+                    ax_district.set_xlim(bounds[0] - 0.01, bounds[2] + 0.01)
+                    ax_district.set_ylim(bounds[1] - 0.01, bounds[3] + 0.01)
+                    
+                # Add chiefdom labels
+                for idx, row in district_gdf.iterrows():
+                    if 'FIRST_CHIE' in row and pd.notna(row['FIRST_CHIE']):
+                        centroid = row.geometry.centroid
+                        ax_district.annotate(
+                            row['FIRST_CHIE'], 
+                            (centroid.x, centroid.y),
+                            xytext=(5, 5), 
+                            textcoords='offset points',
+                            fontsize=9,
+                            ha='left',
+                            bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7)
+                        )
                 
-                st.write(f"**Debug: Found {len(gps_data)} GPS entries for BOMBALI District**")
+                # Customize plot
+                title_text = f'{district_name} District - Chiefdoms: {len(district_gdf)}'
+                if coords_extracted:
+                    title_text += f' | GPS Points: {len(coords_extracted)}'
+                ax_district.set_title(title_text, fontsize=16, fontweight='bold')
+                ax_district.set_xlabel('Longitude', fontsize=12)
+                ax_district.set_ylabel('Latitude', fontsize=12)
                 
-                for idx, gps_val in enumerate(gps_data):
-                    if pd.notna(gps_val):
-                        gps_str = str(gps_val).strip()
-                        st.write(f"GPS {idx+1}: {gps_str}")
-                        
-                        # Handle the specific format: 8.6103181,-12.2029534
-                        if ',' in gps_str:
-                            try:
-                                parts = gps_str.split(',')
-                                if len(parts) == 2:
-                                    lat = float(parts[0].strip())
-                                    lon = float(parts[1].strip())
-                                    
-                                    # Check if coordinates are in valid range for Sierra Leone
-                                    if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
-                                        coords_extracted.append([lat, lon])
-                                        st.write(f"✅ Valid coordinates: {lat}, {lon}")
-                                    else:
-                                        st.write(f"❌ Invalid coordinates (outside Sierra Leone): {lat}, {lon}")
-                            except ValueError as e:
-                                st.write(f"❌ Could not parse coordinates: {gps_str} - Error: {e}")
+                # Add legend if GPS points exist
+                if coords_extracted:
+                    ax_district.legend(fontsize=12, loc='best')
                 
-                st.write(f"**Total valid coordinates extracted: {len(coords_extracted)}**")
-            
-            # Plot GPS points on the shapefile
-            if coords_extracted:
-                lats, lons = zip(*coords_extracted)
+                # Add grid for reference
+                ax_district.grid(True, alpha=0.3, linestyle='--')
                 
-                # Plot GPS points with high visibility
-                scatter = ax_bombali.scatter(
-                    lons, lats,
-                    c='red',
-                    s=150,
-                    alpha=1.0,
-                    edgecolors='white',
-                    linewidth=3,
-                    zorder=100,  # Very high z-order to ensure visibility
-                    label=f'Schools ({len(coords_extracted)})',
-                    marker='o'
-                )
+                plt.tight_layout()
+                st.pyplot(fig_district)
                 
-                # Add text labels for each point
-                for i, (lat, lon) in enumerate(coords_extracted):
-                    ax_bombali.annotate(f'S{i+1}', 
-                                       (lon, lat),
-                                       xytext=(5, 5), 
-                                       textcoords='offset points',
-                                       fontsize=10,
-                                       fontweight='bold',
-                                       color='red',
-                                       bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
+                # Save district map with GPS
+                map_images[f'{district_name}_district_gps'] = save_map_as_png(fig_district, f"{district_name}_District_GPS_Map")
                 
-                # Show coordinate range for verification
-                st.write(f"**Coordinate range:** Lat: {min(lats):.4f} to {max(lats):.4f}, Lon: {min(lons):.4f} to {max(lons):.4f}")
+                # Display chiefdoms list
+                if 'FIRST_CHIE' in district_gdf.columns:
+                    chiefdoms = district_gdf['FIRST_CHIE'].dropna().tolist()
+                    st.write(f"**Chiefdoms in {district_name} District ({len(chiefdoms)}):**")
+                    chiefdom_cols = st.columns(3)
+                    for i, chiefdom in enumerate(chiefdoms):
+                        with chiefdom_cols[i % 3]:
+                            st.write(f"• {chiefdom}")
                 
-                # Set map extent to include all points with padding
-                margin = 0.05
-                ax_bombali.set_xlim(min(lons) - margin, max(lons) + margin)
-                ax_bombali.set_ylim(min(lats) - margin, max(lats) + margin)
-                
-            # Add chiefdom labels
-            for idx, row in bombali_gdf.iterrows():
-                if 'FIRST_CHIE' in row and pd.notna(row['FIRST_CHIE']):
-                    centroid = row.geometry.centroid
-                    ax_bombali.annotate(
-                        row['FIRST_CHIE'], 
-                        (centroid.x, centroid.y),
-                        xytext=(5, 5), 
-                        textcoords='offset points',
-                        fontsize=9,
-                        ha='left',
-                        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7)
-                    )
-            
-            # Customize plot
-            title_text = f'{right_district} District - Chiefdoms: {len(bombali_gdf)}'
-            if coords_extracted:
-                title_text += f' | GPS Points: {len(coords_extracted)}'
-            ax_bombali.set_title(title_text, fontsize=16, fontweight='bold')
-            ax_bombali.set_xlabel('Longitude', fontsize=12)
-            ax_bombali.set_ylabel('Latitude', fontsize=12)
-            
-            # Add legend if GPS points exist
-            if coords_extracted:
-                ax_bombali.legend(fontsize=12, loc='best')
-            
-            # Add grid for reference
-            ax_bombali.grid(True, alpha=0.3, linestyle='--')
-            
-            plt.tight_layout()
-            st.pyplot(fig_bombali)
-            
-            # Save BOMBALI district map
-            map_images['bombali_district'] = save_map_as_png(fig_bombali, f"{right_district}_District_Map")
-            
-            # Display chiefdoms list
-            if 'FIRST_CHIE' in bombali_gdf.columns:
-                chiefdoms = bombali_gdf['FIRST_CHIE'].dropna().tolist()
-                st.write(f"**Chiefdoms in {right_district} District ({len(chiefdoms)}):**")
-                chiefdom_cols = st.columns(3)
-                for i, chiefdom in enumerate(chiefdoms):
-                    with chiefdom_cols[i % 3]:
-                        st.write(f"• {chiefdom}")
-        else:
-            st.warning(f"No chiefdoms found for {right_district} district in shapefile")
+                st.divider()
+            else:
+                st.warning(f"No chiefdoms found for {district_name} district in shapefile")
     else:
         st.error("Shapefile not loaded. Cannot display map.")
     
@@ -1683,27 +1557,43 @@ if uploaded_file:
                 chart_run.add_picture(map_images['sierra_leone_overall'], width=Inches(6.5))
                 doc.add_paragraph()  # Add spacing
             
-            # Add BO District map
+            # Add ALL District Maps with GPS coordinates
+            doc.add_heading('District Maps with GPS Coordinates', level=2)
+            doc.add_paragraph("Detailed district maps showing chiefdoms and school GPS locations:")
+            
+            # Iterate through all district GPS maps
+            for district in extracted_df['District'].dropna().unique():
+                district_gps_key = f'{district}_district_gps'
+                if district_gps_key in map_images:
+                    doc.add_heading(f'{district} District - GPS Locations', level=3)
+                    doc.add_paragraph(f"Geographic distribution of schools and chiefdoms in {district} District with GPS coordinates:")
+                    chart_para = doc.add_paragraph()
+                    chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    chart_run = chart_para.add_run()
+                    map_images[district_gps_key].seek(0)
+                    chart_run.add_picture(map_images[district_gps_key], width=Inches(6))
+                    doc.add_paragraph()  # Add spacing
+            
+            # Add legacy district maps (for backward compatibility)
             if 'bo_district' in map_images:
-                doc.add_heading('BO District Map', level=2)
+                doc.add_heading('BO District Map (Legacy)', level=3)
                 doc.add_paragraph("Geographic distribution of schools and chiefdoms in BO District:")
                 chart_para = doc.add_paragraph()
                 chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 chart_run = chart_para.add_run()
                 map_images['bo_district'].seek(0)
                 chart_run.add_picture(map_images['bo_district'], width=Inches(6))
-                doc.add_paragraph()  # Add spacing after BO map
+                doc.add_paragraph()  # Add spacing
             
-            # Add BOMBALI District map
             if 'bombali_district' in map_images:
-                doc.add_heading('BOMBALI District Map', level=2)
+                doc.add_heading('BOMBALI District Map (Legacy)', level=3)
                 doc.add_paragraph("Geographic distribution of schools and chiefdoms in BOMBALI District:")
                 chart_para = doc.add_paragraph()
                 chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 chart_run = chart_para.add_run()
                 map_images['bombali_district'].seek(0)
                 chart_run.add_picture(map_images['bombali_district'], width=Inches(6))
-                doc.add_paragraph()  # Add spacing after BOMBALI map
+                doc.add_paragraph()  # Add spacing
             
             # Add page break before charts
             doc.add_page_break()
