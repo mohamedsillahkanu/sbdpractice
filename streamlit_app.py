@@ -440,7 +440,7 @@ if uploaded_file:
         "PHU Name": ["District", "Chiefdom", "PHU Name"],
         "Community Name": ["District", "Chiefdom", "PHU Name", "Community Name"],
         "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name"],
-        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name", "Enrollment]
+        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name", "Enrollment"]
     }
     
     # Initialize filtered dataframe with the full dataset
