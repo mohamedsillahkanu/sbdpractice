@@ -1409,7 +1409,7 @@ if uploaded_file:
         # Create aggregation dictionary for enrollment data
         agg_dict = {}
         for class_num in range(1, 6):
-            total_col = f"Number of enrollments in class {class_num}"
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
             boys_col = f"How many boys in Class {class_num} received ITNs?"
             girls_col = f"How many girls in Class {class_num} received ITNs?"
             
@@ -1426,7 +1426,7 @@ if uploaded_file:
         # Calculate total enrollment
         grouped_data["Total Enrollment"] = 0
         for class_num in range(1, 6):
-            total_col = f"Number of enrollments in class {class_num}"
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
             if total_col in grouped_data.columns:
                 grouped_data["Total Enrollment"] += grouped_data[total_col]
         
