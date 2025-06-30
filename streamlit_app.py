@@ -466,8 +466,8 @@ if uploaded_file:
         # OVERALL SIERRA LEONE MAP FIRST
         st.write("**Sierra Leone - All Districts Overview**")
         
-        # Create overall Sierra Leone map
-        fig_overall, ax_overall = plt.subplots(figsize=(16, 10))
+        # Create overall Sierra Leone map with normal size
+        fig_overall, ax_overall = plt.subplots(figsize=(14, 10))
         
         # Plot all chiefdoms with gray edges (base layer)
         gdf.plot(ax=ax_overall, color='white', edgecolor='gray', alpha=0.8, linewidth=0.5)
