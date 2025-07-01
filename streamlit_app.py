@@ -379,7 +379,7 @@ st.markdown("**Comprehensive view of all chiefdoms with GPS school locations**")
 
 # Load the data
 try:
-    df_original = pd.read_excel("GMB253374_SBD_ITN_clean.xlsx")
+    df_original = pd.read_excel("sbd first_submission_clean.xlsx")
     
     # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
@@ -1158,6 +1158,208 @@ try:
 except Exception as e:
     st.error(f"Error generating summary: {e}")
 
+# Section 5: Summary of Distribution and Coverage
+st.header("📊 Section 5: Summary of Distribution and Coverage")
+
+def generate_district_chiefdom_analysis(extracted_df, itn_df, gdf):
+    """Generate comprehensive district and chiefdom analysis"""
+    
+    analysis = {}
+    
+    for district_name in ["BO", "BOMBALI"]:
+        # Filter data for this district
+        district_data = extracted_df[extracted_df["District"].str.upper() == district_name.upper()].copy()
+        district_itn_data = itn_df[itn_df["District"].str.upper() == district_name.upper()].copy()
+        district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
+        
+        # Get chiefdoms for this district
+        chiefdoms = sorted(district_gdf['FIRST_CHIE'].dropna().unique())
+        
+        chiefdom_analysis = []
+        
+        for chiefdom in chiefdoms:
+            # Filter data for this chiefdom
+            chiefdom_data = district_data[district_data["Chiefdom"] == chiefdom].copy()
+            chiefdom_itn_data = district_itn_data[district_itn_data["Chiefdom"] == chiefdom].copy()
+            
+            # Get target schools
+            target_data = generate_target_school_data([])
+            target_schools = target_data.get(chiefdom, 0)
+            
+            # Calculate metrics
+            schools_surveyed = len(chiefdom_data)
+            gps_schools = len(chiefdom_data[chiefdom_data['GPS_Location'].notna()])
+            total_enrollment = int(chiefdom_itn_data["Total_Enrollment"].sum()) if len(chiefdom_itn_data) > 0 else 0
+            itns_distributed = int(chiefdom_itn_data["Distributed_ITNs"].sum()) if len(chiefdom_itn_data) > 0 else 0
+            total_itns = int(chiefdom_itn_data["Total_ITNs"].sum()) if len(chiefdom_itn_data) > 0 else 0
+            
+            # Calculate percentages
+            school_coverage = (schools_surveyed / target_schools * 100) if target_schools > 0 else 0
+            gps_coverage = (gps_schools / schools_surveyed * 100) if schools_surveyed > 0 else 0
+            itn_coverage = (itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
+            
+            chiefdom_analysis.append({
+                'Chiefdom': chiefdom,
+                'Target_Schools': target_schools,
+                'Schools_Surveyed': schools_surveyed,
+                'GPS_Schools': gps_schools,
+                'Total_Enrollment': total_enrollment,
+                'ITNs_Distributed': itns_distributed,
+                'Total_ITNs': total_itns,
+                'School_Coverage': school_coverage,
+                'GPS_Coverage': gps_coverage,
+                'ITN_Coverage': itn_coverage
+            })
+        
+        analysis[district_name] = chiefdom_analysis
+    
+    return analysis
+
+# Generate analysis
+try:
+    district_analysis = generate_district_chiefdom_analysis(extracted_df, itn_df, gdf)
+    
+    # District Comparison Overview
+    st.subheader("🏘️ District Comparison Overview")
+    
+    # Calculate district totals
+    district_totals = {}
+    for district in ["BO", "BOMBALI"]:
+        district_data = district_analysis[district]
+        
+        total_target = sum([d['Target_Schools'] for d in district_data])
+        total_surveyed = sum([d['Schools_Surveyed'] for d in district_data])
+        total_gps = sum([d['GPS_Schools'] for d in district_data])
+        total_enrollment = sum([d['Total_Enrollment'] for d in district_data])
+        total_itns_dist = sum([d['ITNs_Distributed'] for d in district_data])
+        total_itns = sum([d['Total_ITNs'] for d in district_data])
+        
+        district_totals[district] = {
+            'Target_Schools': total_target,
+            'Schools_Surveyed': total_surveyed,
+            'GPS_Schools': total_gps,
+            'Total_Enrollment': total_enrollment,
+            'ITNs_Distributed': total_itns_dist,
+            'Total_ITNs': total_itns,
+            'School_Coverage': (total_surveyed / total_target * 100) if total_target > 0 else 0,
+            'GPS_Coverage': (total_gps / total_surveyed * 100) if total_surveyed > 0 else 0,
+            'ITN_Coverage': (total_itns_dist / total_enrollment * 100) if total_enrollment > 0 else 0
+        }
+    
+    # Display district comparison
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### BO District Summary")
+        bo_data = district_totals["BO"]
+        st.metric("Target Schools", f"{bo_data['Target_Schools']:,}")
+        st.metric("Schools Surveyed", f"{bo_data['Schools_Surveyed']:,}")
+        st.metric("School Coverage", f"{bo_data['School_Coverage']:.1f}%")
+        st.metric("GPS Coverage", f"{bo_data['GPS_Coverage']:.1f}%")
+        st.metric("Total Enrollment", f"{bo_data['Total_Enrollment']:,}")
+        st.metric("ITNs Distributed", f"{bo_data['ITNs_Distributed']:,}")
+        st.metric("ITN Coverage", f"{bo_data['ITN_Coverage']:.1f}%")
+    
+    with col2:
+        st.markdown("### BOMBALI District Summary")
+        bombali_data = district_totals["BOMBALI"]
+        st.metric("Target Schools", f"{bombali_data['Target_Schools']:,}")
+        st.metric("Schools Surveyed", f"{bombali_data['Schools_Surveyed']:,}")
+        st.metric("School Coverage", f"{bombali_data['School_Coverage']:.1f}%")
+        st.metric("GPS Coverage", f"{bombali_data['GPS_Coverage']:.1f}%")
+        st.metric("Total Enrollment", f"{bombali_data['Total_Enrollment']:,}")
+        st.metric("ITNs Distributed", f"{bombali_data['ITNs_Distributed']:,}")
+        st.metric("ITN Coverage", f"{bombali_data['ITN_Coverage']:.1f}%")
+    
+    # Chiefdom Analysis by District
+    st.subheader("🏘️ Chiefdom Analysis by District")
+    
+    # BO District Chiefdom Analysis
+    st.markdown("### BO District - Chiefdom Performance")
+    bo_df = pd.DataFrame(district_analysis["BO"])
+    bo_df = bo_df.sort_values('ITN_Coverage', ascending=False)
+    
+    # Format percentages for display
+    bo_display = bo_df.copy()
+    bo_display['School_Coverage'] = bo_display['School_Coverage'].apply(lambda x: f"{x:.1f}%")
+    bo_display['GPS_Coverage'] = bo_display['GPS_Coverage'].apply(lambda x: f"{x:.1f}%")
+    bo_display['ITN_Coverage'] = bo_display['ITN_Coverage'].apply(lambda x: f"{x:.1f}%")
+    
+    st.dataframe(bo_display, use_container_width=True)
+    
+    # BOMBALI District Chiefdom Analysis
+    st.markdown("### BOMBALI District - Chiefdom Performance")
+    bombali_df = pd.DataFrame(district_analysis["BOMBALI"])
+    bombali_df = bombali_df.sort_values('ITN_Coverage', ascending=False)
+    
+    # Format percentages for display
+    bombali_display = bombali_df.copy()
+    bombali_display['School_Coverage'] = bombali_display['School_Coverage'].apply(lambda x: f"{x:.1f}%")
+    bombali_display['GPS_Coverage'] = bombali_display['GPS_Coverage'].apply(lambda x: f"{x:.1f}%")
+    bombali_display['ITN_Coverage'] = bombali_display['ITN_Coverage'].apply(lambda x: f"{x:.1f}%")
+    
+    st.dataframe(bombali_display, use_container_width=True)
+    
+    # Performance Rankings
+    st.subheader("🏆 Performance Rankings")
+    
+    # Combine all chiefdoms for ranking
+    all_chiefdoms = []
+    for district in ["BO", "BOMBALI"]:
+        for chiefdom_data in district_analysis[district]:
+            chiefdom_data['District'] = district
+            all_chiefdoms.append(chiefdom_data)
+    
+    all_chiefdoms_df = pd.DataFrame(all_chiefdoms)
+    
+    ranking_col1, ranking_col2, ranking_col3 = st.columns(3)
+    
+    with ranking_col1:
+        st.markdown("#### 🥇 Top ITN Coverage")
+        top_itn = all_chiefdoms_df.nlargest(5, 'ITN_Coverage')[['District', 'Chiefdom', 'ITN_Coverage']]
+        top_itn['ITN_Coverage'] = top_itn['ITN_Coverage'].apply(lambda x: f"{x:.1f}%")
+        st.dataframe(top_itn, hide_index=True)
+    
+    with ranking_col2:
+        st.markdown("#### 📊 Top School Coverage")
+        top_school = all_chiefdoms_df.nlargest(5, 'School_Coverage')[['District', 'Chiefdom', 'School_Coverage']]
+        top_school['School_Coverage'] = top_school['School_Coverage'].apply(lambda x: f"{x:.1f}%")
+        st.dataframe(top_school, hide_index=True)
+    
+    with ranking_col3:
+        st.markdown("#### 📍 Top GPS Coverage")
+        top_gps = all_chiefdoms_df.nlargest(5, 'GPS_Coverage')[['District', 'Chiefdom', 'GPS_Coverage']]
+        top_gps['GPS_Coverage'] = top_gps['GPS_Coverage'].apply(lambda x: f"{x:.1f}%")
+        st.dataframe(top_gps, hide_index=True)
+    
+    # Areas Needing Attention
+    st.subheader("⚠️ Areas Needing Attention")
+    
+    attention_col1, attention_col2 = st.columns(2)
+    
+    with attention_col1:
+        st.markdown("#### 🔴 Low ITN Coverage (< 50%)")
+        low_itn = all_chiefdoms_df[all_chiefdoms_df['ITN_Coverage'] < 50][['District', 'Chiefdom', 'ITN_Coverage', 'Total_Enrollment']]
+        if len(low_itn) > 0:
+            low_itn = low_itn.sort_values('ITN_Coverage')
+            low_itn['ITN_Coverage'] = low_itn['ITN_Coverage'].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(low_itn, hide_index=True)
+        else:
+            st.success("✅ All chiefdoms have ITN coverage ≥ 50%")
+    
+    with attention_col2:
+        st.markdown("#### 🔴 Low School Coverage (< 50%)")
+        low_school = all_chiefdoms_df[all_chiefdoms_df['School_Coverage'] < 50][['District', 'Chiefdom', 'School_Coverage', 'Target_Schools']]
+        if len(low_school) > 0:
+            low_school = low_school.sort_values('School_Coverage')
+            low_school['School_Coverage'] = low_school['School_Coverage'].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(low_school, hide_index=True)
+        else:
+            st.success("✅ All chiefdoms have school coverage ≥ 50%")
+
+except Exception as e:
+    st.error(f"Error generating distribution and coverage analysis: {e}")
+
 # Raw data preview
 if st.checkbox("Show raw data preview"):
     st.subheader("📄 Raw Data Preview")
@@ -1558,14 +1760,6 @@ with logo_col4:
     except:
         st.write("❌ Logo 4 file not found")
 
-# Example paths info
-st.info("""
-💡 **Example file paths:**
-- `NMCP.png` (same directory as app)
-- `logos/organization1.png` (subfolder)
-- `C:/path/to/logo.png` (absolute path)
-- `./assets/logo.jpg` (relative path)
-""")
 
 # Update logo configuration in session state
 st.session_state.logos = {
