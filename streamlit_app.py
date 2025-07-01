@@ -379,7 +379,7 @@ st.markdown("**Comprehensive view of all chiefdoms with GPS school locations**")
 
 # Load the data
 try:
-    df_original = pd.read_excel("sbd first_submission_clean.xlsx")
+    df_original = pd.read_excel("GMB253374_SBD_ITN_clean.xlsx")
     
     # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
