@@ -40,6 +40,47 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def parse_gps_coordinates(gps_str):
+    """Enhanced GPS coordinate parsing that handles multiple formats"""
+    if pd.isna(gps_str):
+        return None, None
+    
+    gps_str = str(gps_str).strip()
+    lat, lon = None, None
+    
+    # Format 1: "8.6103181,-12.2029534"
+    if ',' in gps_str and not ' ' in gps_str:
+        try:
+            parts = gps_str.split(',')
+            if len(parts) == 2:
+                lat = float(parts[0].strip())
+                lon = float(parts[1].strip())
+        except ValueError:
+            pass
+    
+    # Format 2: "8.6103181 -12.2029534" (space separated)
+    elif ' ' in gps_str and ',' not in gps_str:
+        try:
+            parts = gps_str.split()
+            if len(parts) == 2:
+                lat = float(parts[0].strip())
+                lon = float(parts[1].strip())
+        except ValueError:
+            pass
+    
+    # Format 3: Other formats with parentheses, etc.
+    else:
+        # Extract numbers using regex
+        numbers = re.findall(r'-?\d+\.?\d*', gps_str)
+        if len(numbers) >= 2:
+            try:
+                lat = float(numbers[0])
+                lon = float(numbers[1])
+            except ValueError:
+                pass
+    
+    return lat, lon
+
 def create_chiefdom_mapping():
     """Create mapping between GPS data chiefdom names and shapefile FIRST_CHIE names"""
     chiefdom_mapping = {
