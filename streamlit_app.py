@@ -148,49 +148,54 @@ def extract_gps_data_from_excel(df):
     return extracted_df
 
 def generate_target_school_data(chiefdoms):
-    """Generate target school data based on real chiefdom data"""
+    """Generate target school data based on actual provided target data"""
     
-    # Real target data provided
+    # Actual target data provided - mapped to shapefile chiefdom names
     target_data = {
-        # BO District
-        "BADJIA": 9,
-        "BAGBWE(BAGBE)": 18,
-        "BOAMA": 56,
-        "BAGBO": 31,  # Bargbo
-        "BO TOWN": 86,  # Bo City
-        "BONGOR": 18,
-        "BUMPE NGAO": 63,  # Bumpeh
-        "GBO": 10,
-        "JAIAMA": 25,
-        "KAKUA": 164,
-        "KOMBOYA": 17,
-        "LUGBU": 32,
-        "NIAWA LENGA": 25,
-        "SELENGA": 7,
-        "TIKONKO": 89,  # Tinkoko
-        "VALUNIA": 38,
-        "WONDE": 13,
+        # BO District - using actual target numbers
+        "BADJIA": 9,                    # Badjia
+        "BAGBWE(BAGBE)": 18,           # Bagbwe
+        "BOAMA": 56,                   # Baoma
+        "BAGBO": 31,                   # Bargbo
+        "BO TOWN": 86,                 # Bo City
+        "BONGOR": 18,                  # Bongor
+        "BUMPE NGAO": 63,              # Bumpeh
+        "GBO": 10,                     # Gbo
+        "JAIAMA": 25,                  # Jaiama
+        "KAKUA": 164,                  # Kakua
+        "KOMBOYA": 17,                 # Komboya
+        "LUGBU": 32,                   # Lugbu
+        "NIAWA LENGA": 25,             # Niawa Lenga
+        "SELENGA": 7,                  # Selenga
+        "TIKONKO": 89,                 # Tinkoko
+        "VALUNIA": 38,                 # Valunia
+        "WONDE": 13,                   # Wonde
         
-        # BOMBALI District  
-        "BIRIWA": 48,
-        "BOMBALI SEBORA": 44,
-        "BOMBALI SIARI": 7,  # Bombali Serry Chiefdom
-        "GBANTI": 40,  # Gbanti (Bombali)
-        "GBENDEMBU": 30,
-        "KAMARANKA": 13,
-        "MAGBAIMBA NDORWAHUN": 17,  # Magbaimba Ndohahun
-        "MAKARI": 54,  # Makarie
-        "MAKENI CITY": 93,
-        "MARA": 15,
-        "N'GOWAHUN": 28,  # Ngowahun
-        "PAKI MASABONG": 29,
-        "SAFROKO LIMBA": 36,
+        # BOMBALI District - using actual target numbers
+        "BIRIWA": 48,                  # Biriwa
+        "BOMBALI SEBORA": 44,          # Bombali Sebora
+        "BOMBALI SIARI": 7,            # Bombali Serry Chiefdom
+        "GBANTI": 40,                  # Gbanti (Bombali)
+        "GBENDEMBU": 30,               # Gbendembu
+        "KAMARANKA": 13,               # Kamaranka
+        "MAGBAIMBA NDORWAHUN": 17,     # Magbaimba Ndohahun
+        "MAKARI": 54,                  # Makarie
+        "MAKENI CITY": 93,             # Makeni City
+        "MARA": 15,                    # Mara
+        "N'GOWAHUN": 28,               # Ngowahun
+        "PAKI MASABONG": 29,           # Paki Masabong
+        "SAFROKO LIMBA": 36,           # Safroko Limba
     }
     
-    # For any chiefdom not in the list, return a default value
+    # Return target data for requested chiefdoms
     result = {}
     for chiefdom in chiefdoms:
-        result[chiefdom] = target_data.get(chiefdom, 20)  # Default to 20 if not found
+        if chiefdom in target_data:
+            result[chiefdom] = target_data[chiefdom]
+        else:
+            # If chiefdom not found, set to 0 to indicate no target data available
+            result[chiefdom] = 0
+            print(f"Warning: No target data found for chiefdom: {chiefdom}")
     
     return result
 
@@ -210,7 +215,7 @@ def get_coverage_color(coverage_percent):
         return '#4a148c'  # Purple (100% coverage)
 
 def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
-    """Create coverage dashboard for all chiefdoms in a district"""
+    """Create coverage dashboard optimized for Word document export"""
     
     # Filter shapefile for the district
     district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
@@ -228,10 +233,14 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
     # Calculate rows needed
     rows = math.ceil(len(chiefdoms) / cols)
     
-    # Create subplot figure with increased vertical space
-    fig, axes = plt.subplots(rows, cols, figsize=(cols*5, rows*6))
+    # Optimize figure size for Word document (16:10 aspect ratio works well)
+    fig_width = 16  # Width for Word document
+    fig_height = rows * 3.5  # Height per row optimized for Word
+    
+    # Create subplot figure optimized for Word export
+    fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height))
     fig.suptitle(f'{district_name} District - School Coverage Analysis', 
-                 fontsize=20, fontweight='bold', y=0.98)
+                 fontsize=18, fontweight='bold', y=0.98)
     
     # Ensure axes is always 2D array
     if rows == 1:
@@ -266,14 +275,14 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
         coverage_color = get_coverage_color(coverage_percent)
         
         # Plot chiefdom boundary with coverage color
-        chiefdom_gdf.plot(ax=ax, color=coverage_color, edgecolor='black', alpha=0.8, linewidth=2)
+        chiefdom_gdf.plot(ax=ax, color=coverage_color, edgecolor='black', alpha=0.8, linewidth=1.5)
         
         # Create coverage text
         coverage_text = f"{actual_schools}/{target_schools} ({coverage_percent:.0f}%)"
         
-        # Set title with coverage information
+        # Set title with coverage information (optimized font size for Word)
         ax.set_title(f'{chiefdom}\n{coverage_text}', 
-                    fontsize=11, fontweight='bold', pad=10)
+                    fontsize=10, fontweight='bold', pad=8)
         
         # Remove axis labels and ticks for cleaner look
         ax.set_xticks([])
@@ -282,20 +291,18 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
         ax.set_ylabel('')
         
         # Remove the box frame
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
         
-        # Add light grid
-        ax.grid(True, alpha=0.2, linestyle='--')
+        # Add very light grid
+        ax.grid(True, alpha=0.2, linestyle='--', linewidth=0.5)
         
-        # Set equal aspect ratio and tight layout
+        # Set equal aspect ratio
         ax.set_aspect('equal')
         
-        # Set bounds to chiefdom extent with some padding
+        # Set bounds to chiefdom extent with minimal padding for better fit
         bounds = chiefdom_gdf.total_bounds
-        padding = 0.01
+        padding = 0.005  # Reduced padding for better fit in Word
         ax.set_xlim(bounds[0] - padding, bounds[2] + padding)
         ax.set_ylim(bounds[1] - padding, bounds[3] + padding)
     
@@ -306,8 +313,9 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
         col = idx % cols
         axes[row, col].set_visible(False)
     
+    # Optimize layout for Word document
     plt.tight_layout()
-    plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
+    plt.subplots_adjust(top=0.95, hspace=0.35, wspace=0.25)
     
     return fig
 
@@ -356,10 +364,9 @@ except Exception as e:
     st.info("💡 Make sure 'Chiefdom2021.shp' and supporting files (.dbf, .shx, .prj) are in the same directory as this app")
     st.stop()
 
-# Dashboard Settings
-st.sidebar.header("⚙️ Dashboard Settings")
-columns = st.sidebar.selectbox("Number of columns", [2, 3, 4, 5], index=2)
-show_targets = st.sidebar.checkbox("Show target data details", value=True)
+# Dashboard Settings - Fixed configuration
+columns = 4  # Fixed to 4 columns for optimal Word export
+show_targets = True  # Always show target data details
 
 if show_targets:
     # Display target data information
@@ -394,11 +401,104 @@ with st.spinner("Generating BO District coverage dashboard..."):
             buffer_bo_coverage.seek(0)
             
             st.download_button(
-                label="📥 Download BO District Coverage Dashboard",
+                label="📥 Download BO District Coverage Dashboard (PNG)",
                 data=buffer_bo_coverage,
                 file_name="BO_District_Coverage_Dashboard.png",
                 mime="image/png"
             )
+            
+            # Word Export for BO District
+            try:
+                from docx import Document
+                from docx.shared import Inches, Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+                
+                # Create Word document
+                doc = Document()
+                
+                # Add title
+                title = doc.add_heading('BO District - School Coverage Analysis', 0)
+                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add generation date
+                date_para = doc.add_paragraph()
+                date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                date_run = date_para.add_run(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                date_run.font.size = Pt(12)
+                
+                doc.add_paragraph()  # Add space
+                
+                # Save matplotlib figure as PNG and embed in Word
+                timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+                png_filename = f"BO_District_Coverage_Dashboard_{timestamp}.png"
+                
+                # Save PNG file to current directory
+                fig_bo_coverage.savefig(png_filename, format='png', dpi=200, 
+                                       bbox_inches='tight', facecolor='white', 
+                                       edgecolor='none', pad_inches=0.1)
+                
+                # Add the saved PNG to Word document
+                doc.add_picture(png_filename, width=Inches(9.5))  # Fits well in Word page
+                
+                # Add coverage legend
+                doc.add_heading('Coverage Color Legend', level=2)
+                legend_items = [
+                    "🔴 Red: < 20% coverage",
+                    "🟠 Orange: 20-39% coverage", 
+                    "🟡 Yellow: 40-59% coverage",
+                    "🟢 Light Green: 60-79% coverage",
+                    "🔵 Blue: 80-99% coverage",
+                    "🟣 Purple: 100%+ coverage"
+                ]
+                
+                for item in legend_items:
+                    p = doc.add_paragraph()
+                    p.add_run('• ').bold = True
+                    p.add_run(item)
+                
+                # Add summary information
+                doc.add_heading('Dashboard Summary', level=2)
+                
+                bo_data = extracted_df[extracted_df["District"].str.upper() == "BO"]
+                target_data_all = generate_target_school_data([])
+                bo_chiefdoms = ['BADJIA', 'BAGBWE(BAGBE)', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE']
+                bo_target_total = sum([v for k, v in target_data_all.items() if k in bo_chiefdoms])
+                bo_coverage = (len(bo_data) / bo_target_total * 100) if bo_target_total > 0 else 0
+                
+                summary_text = f"""
+                District: BO
+                Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BO'])}
+                Actual Schools: {len(bo_data)}
+                Target Schools: {bo_target_total}
+                Coverage Rate: {bo_coverage:.1f}%
+                PNG File Saved: {png_filename}
+                """
+                
+                for line in summary_text.strip().split('\n'):
+                    if line.strip():
+                        p = doc.add_paragraph()
+                        p.add_run('• ').bold = True
+                        p.add_run(line.strip())
+                
+                # Save to BytesIO
+                word_buffer = BytesIO()
+                doc.save(word_buffer)
+                word_data = word_buffer.getvalue()
+                
+                # Success message
+                st.success(f"✅ PNG saved as: {png_filename}")
+                
+                st.download_button(
+                    label="📄 Download BO District Coverage Report (Word)",
+                    data=word_data,
+                    file_name=f"BO_District_Coverage_Report_{timestamp}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+                
+            except ImportError:
+                st.warning("⚠️ Word export requires python-docx library. Install with: pip install python-docx")
+            except Exception as e:
+                st.warning(f"⚠️ Word export failed: {str(e)}")
         else:
             st.warning("Could not generate BO District coverage dashboard")
     except Exception as e:
@@ -421,11 +521,104 @@ with st.spinner("Generating BOMBALI District coverage dashboard..."):
             buffer_bombali_coverage.seek(0)
             
             st.download_button(
-                label="📥 Download BOMBALI District Coverage Dashboard",
+                label="📥 Download BOMBALI District Coverage Dashboard (PNG)",
                 data=buffer_bombali_coverage,
                 file_name="BOMBALI_District_Coverage_Dashboard.png",
                 mime="image/png"
             )
+            
+            # Word Export for BOMBALI District
+            try:
+                from docx import Document
+                from docx.shared import Inches, Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+                
+                # Create Word document
+                doc = Document()
+                
+                # Add title
+                title = doc.add_heading('BOMBALI District - School Coverage Analysis', 0)
+                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add generation date
+                date_para = doc.add_paragraph()
+                date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                date_run = date_para.add_run(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                date_run.font.size = Pt(12)
+                
+                doc.add_paragraph()  # Add space
+                
+                # Save matplotlib figure as PNG and embed in Word
+                timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+                png_filename = f"BOMBALI_District_Coverage_Dashboard_{timestamp}.png"
+                
+                # Save PNG file to current directory
+                fig_bombali_coverage.savefig(png_filename, format='png', dpi=200, 
+                                            bbox_inches='tight', facecolor='white', 
+                                            edgecolor='none', pad_inches=0.1)
+                
+                # Add the saved PNG to Word document
+                doc.add_picture(png_filename, width=Inches(9.5))  # Fits well in Word page
+                
+                # Add coverage legend
+                doc.add_heading('Coverage Color Legend', level=2)
+                legend_items = [
+                    "🔴 Red: < 20% coverage",
+                    "🟠 Orange: 20-39% coverage", 
+                    "🟡 Yellow: 40-59% coverage",
+                    "🟢 Light Green: 60-79% coverage",
+                    "🔵 Blue: 80-99% coverage",
+                    "🟣 Purple: 100%+ coverage"
+                ]
+                
+                for item in legend_items:
+                    p = doc.add_paragraph()
+                    p.add_run('• ').bold = True
+                    p.add_run(item)
+                
+                # Add summary information
+                doc.add_heading('Dashboard Summary', level=2)
+                
+                bombali_data = extracted_df[extracted_df["District"].str.upper() == "BOMBALI"]
+                target_data_all = generate_target_school_data([])
+                bombali_chiefdoms = ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA']
+                bombali_target_total = sum([v for k, v in target_data_all.items() if k in bombali_chiefdoms])
+                bombali_coverage = (len(bombali_data) / bombali_target_total * 100) if bombali_target_total > 0 else 0
+                
+                summary_text = f"""
+                District: BOMBALI
+                Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])}
+                Actual Schools: {len(bombali_data)}
+                Target Schools: {bombali_target_total}
+                Coverage Rate: {bombali_coverage:.1f}%
+                PNG File Saved: {png_filename}
+                """
+                
+                for line in summary_text.strip().split('\n'):
+                    if line.strip():
+                        p = doc.add_paragraph()
+                        p.add_run('• ').bold = True
+                        p.add_run(line.strip())
+                
+                # Save to BytesIO
+                word_buffer = BytesIO()
+                doc.save(word_buffer)
+                word_data = word_buffer.getvalue()
+                
+                # Success message
+                st.success(f"✅ PNG saved as: {png_filename}")
+                
+                st.download_button(
+                    label="📄 Download BOMBALI District Coverage Report (Word)",
+                    data=word_data,
+                    file_name=f"BOMBALI_District_Coverage_Report_{timestamp}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+                
+            except ImportError:
+                st.warning("⚠️ Word export requires python-docx library. Install with: pip install python-docx")
+            except Exception as e:
+                st.warning(f"⚠️ Word export failed: {str(e)}")
         else:
             st.warning("Could not generate BOMBALI District coverage dashboard")
     except Exception as e:
@@ -523,14 +716,182 @@ for district in ["BO", "BOMBALI"]:
 coverage_df = pd.DataFrame(detailed_coverage)
 st.dataframe(coverage_df, use_container_width=True)
 
-# Download detailed coverage data
-csv_data = coverage_df.to_csv(index=False)
-st.download_button(
-    label="📥 Download Coverage Analysis CSV",
-    data=csv_data,
-    file_name="school_coverage_analysis.csv",
-    mime="text/csv"
-)
+# Export All Dashboards as Combined Word Document
+st.header("📄 Combined Word Export")
+
+if st.button("📋 Generate Combined Coverage Report", help="Generate a comprehensive Word document with both districts"):
+    try:
+        from docx import Document
+        from docx.shared import Inches, Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        
+        # Create Word document
+        doc = Document()
+        
+        # Add main title
+        title = doc.add_heading('School-Based Distribution (SBD)', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        subtitle = doc.add_heading('School Coverage Analysis Dashboard', level=1)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Add generation date
+        date_para = doc.add_paragraph()
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        date_run = date_para.add_run(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        date_run.font.size = Pt(12)
+        date_run.bold = True
+        
+        doc.add_page_break()
+        
+        # Coverage Legend
+        doc.add_heading('Coverage Color Legend', level=1)
+        legend_items = [
+            "🔴 Red: < 20% coverage (Critical - requires immediate attention)",
+            "🟠 Orange: 20-39% coverage (Poor - needs significant improvement)", 
+            "🟡 Yellow: 40-59% coverage (Fair - room for improvement)",
+            "🟢 Light Green: 60-79% coverage (Good - meeting most targets)",
+            "🔵 Blue: 80-99% coverage (Excellent - exceeding expectations)",
+            "🟣 Purple: 100%+ coverage (Outstanding - surpassing all targets)"
+        ]
+        
+        for item in legend_items:
+            p = doc.add_paragraph()
+            p.add_run('• ').bold = True
+            p.add_run(item)
+        
+        doc.add_page_break()
+        
+        # Executive Summary
+        doc.add_heading('Executive Summary', level=1)
+        
+        bo_data = extracted_df[extracted_df["District"].str.upper() == "BO"]
+        bombali_data = extracted_df[extracted_df["District"].str.upper() == "BOMBALI"]
+        target_data_all = generate_target_school_data([])
+        
+        bo_chiefdoms = ['BADJIA', 'BAGBWE(BAGBE)', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE']
+        bombali_chiefdoms = ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA']
+        
+        bo_target_total = sum([v for k, v in target_data_all.items() if k in bo_chiefdoms])
+        bombali_target_total = sum([v for k, v in target_data_all.items() if k in bombali_chiefdoms])
+        total_target = bo_target_total + bombali_target_total
+        total_actual = len(extracted_df)
+        overall_coverage = (total_actual / total_target * 100) if total_target > 0 else 0
+        
+        summary_text = f"""
+        This comprehensive dashboard report presents school coverage analysis comparing actual surveyed schools versus target schools for BO and BOMBALI districts:
+        
+        • Districts Covered: BO, BOMBALI
+        • Total Target Schools: {total_target:,}
+        • Total Actual Schools: {total_actual:,}
+        • Overall Coverage Rate: {overall_coverage:.1f}%
+        • BO District Coverage: {(len(bo_data)/bo_target_total*100) if bo_target_total > 0 else 0:.1f}%
+        • BOMBALI District Coverage: {(len(bombali_data)/bombali_target_total*100) if bombali_target_total > 0 else 0:.1f}%
+        
+        Coverage is calculated as: (Actual Schools / Target Schools) × 100%
+        Color coding helps identify areas requiring attention and those performing well.
+        """
+        
+        for line in summary_text.strip().split('\n'):
+            if line.strip():
+                if line.startswith('•'):
+                    p = doc.add_paragraph()
+                    p.add_run(line.strip())
+                else:
+                    doc.add_paragraph(line.strip())
+        
+        doc.add_page_break()
+        
+        # BO District section
+        if 'fig_bo_coverage' in locals():
+            doc.add_heading('BO District - School Coverage Analysis', level=1)
+            
+            # Save BO figure as PNG and embed in Word
+            timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+            bo_png_filename = f"BO_District_Coverage_Combined_{timestamp}.png"
+            
+            # Save PNG file to current directory
+            fig_bo_coverage.savefig(bo_png_filename, format='png', dpi=200, 
+                                   bbox_inches='tight', facecolor='white', 
+                                   edgecolor='none', pad_inches=0.1)
+            
+            # Add the saved PNG to Word document
+            doc.add_picture(bo_png_filename, width=Inches(9.5))  # Fits well in Word page
+            
+            # BO summary
+            doc.add_heading('BO District Summary', level=2)
+            bo_coverage = (len(bo_data) / bo_target_total * 100) if bo_target_total > 0 else 0
+            
+            bo_summary_items = [
+                f"Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BO'])}",
+                f"Target Schools: {bo_target_total:,}",
+                f"Actual Schools: {len(bo_data):,}",
+                f"Coverage Rate: {bo_coverage:.1f}%",
+                f"PNG File Saved: {bo_png_filename}"
+            ]
+            
+            for item in bo_summary_items:
+                p = doc.add_paragraph()
+                p.add_run('• ').bold = True
+                p.add_run(item)
+            
+            doc.add_page_break()
+        
+        # BOMBALI District section
+        if 'fig_bombali_coverage' in locals():
+            doc.add_heading('BOMBALI District - School Coverage Analysis', level=1)
+            
+            # Save BOMBALI figure as PNG and embed in Word
+            bombali_png_filename = f"BOMBALI_District_Coverage_Combined_{timestamp}.png"
+            
+            # Save PNG file to current directory
+            fig_bombali_coverage.savefig(bombali_png_filename, format='png', dpi=200, 
+                                        bbox_inches='tight', facecolor='white', 
+                                        edgecolor='none', pad_inches=0.1)
+            
+            # Add the saved PNG to Word document
+            doc.add_picture(bombali_png_filename, width=Inches(9.5))  # Fits well in Word page
+            
+            # BOMBALI summary
+            doc.add_heading('BOMBALI District Summary', level=2)
+            bombali_coverage = (len(bombali_data) / bombali_target_total * 100) if bombali_target_total > 0 else 0
+            
+            bombali_summary_items = [
+                f"Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])}",
+                f"Target Schools: {bombali_target_total:,}",
+                f"Actual Schools: {len(bombali_data):,}",
+                f"Coverage Rate: {bombali_coverage:.1f}%",
+                f"PNG File Saved: {bombali_png_filename}"
+            ]
+            
+            for item in bombali_summary_items:
+                p = doc.add_paragraph()
+                p.add_run('• ').bold = True
+                p.add_run(item)
+        
+        # Save to BytesIO
+        word_buffer = BytesIO()
+        doc.save(word_buffer)
+        word_data = word_buffer.getvalue()
+        
+        # Success message showing saved PNG files
+        st.success(f"✅ PNG files saved: {bo_png_filename}, {bombali_png_filename}")
+        
+        st.download_button(
+            label="💾 Download Combined Coverage Analysis Report (Word)",
+            data=word_data,
+            file_name=f"School_Coverage_Analysis_Report_{timestamp}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            help="Download comprehensive Word report with both districts"
+        )
+        
+    except ImportError:
+        st.error("❌ Word generation requires python-docx library. Please install it using: pip install python-docx")
+    except Exception as e:
+        st.error(f"❌ Error generating combined Word document: {str(e)}")
+
+# Download detailed coverage data (CSV removed as requested)
+st.subheader("📊 Coverage Analysis Summary")
 
 # Memory optimization - close matplotlib figures
 plt.close('all')
