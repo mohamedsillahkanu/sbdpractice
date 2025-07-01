@@ -274,48 +274,17 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
         
         # Extract and plot GPS coordinates for this chiefdom
         coords_extracted = []
-        debug_info = ""
         if len(chiefdom_data) > 0 and not chiefdom_data["GPS_Location"].isna().all():
             gps_data = chiefdom_data["GPS_Location"].dropna()
             
-            # Debug information for GPS processing
-            debug_gps_info = []
-            debug_gps_info.append(f"Debug {chiefdom}: Found {len(chiefdom_data)} records, {len(gps_data)} with GPS data")
-            
-            for idx, gps_val in enumerate(gps_data):
+            for gps_val in gps_data:
                 if pd.notna(gps_val):
-                    debug_gps_info.append(f"GPS {idx+1}: '{gps_val}'")
                     lat, lon = parse_gps_coordinates(gps_val)
                     
                     # Validate coordinates for Sierra Leone
                     if lat is not None and lon is not None:
                         if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
-                            coords_extracted.append([lat, lon, str(gps_val)])
-                            debug_gps_info.append(f"✅ Valid: {lat}, {lon}")
-                        else:
-                            debug_gps_info.append(f"❌ Invalid (outside SL): {lat}, {lon}")
-                    else:
-                        debug_gps_info.append(f"❌ Could not parse: {gps_val}")
-            
-            # Show debug info for BAGBO specifically
-            if chiefdom == "BAGBO":
-                st.write("🔍 **BAGBO Debug Information:**")
-                for info in debug_gps_info:
-                    st.write(f"• {info}")
-                
-                # Show the actual data for BAGBO
-                st.write("**BAGBO Raw Data:**")
-                bagbo_debug_data = chiefdom_data[['District', 'Chiefdom', 'GPS_Location']].copy()
-                st.dataframe(bagbo_debug_data)
-        else:
-            if chiefdom == "BAGBO":
-                st.write("🔍 **BAGBO Debug Information:**")
-                st.write(f"• Found {len(chiefdom_data)} records for BAGBO")
-                st.write("• No GPS data available or all GPS values are null")
-                if len(chiefdom_data) > 0:
-                    st.write("**BAGBO Raw Data:**")
-                    bagbo_debug_data = chiefdom_data[['District', 'Chiefdom', 'GPS_Location']].copy()
-                    st.dataframe(bagbo_debug_data)
+                            coords_extracted.append([lat, lon, str(gps_val)])  # Include original GPS string for debugging
         
         # Handle overlapping coordinates by adding small offsets
         def separate_overlapping_points(coords, min_distance=0.001):
@@ -1589,7 +1558,14 @@ with logo_col4:
     except:
         st.write("❌ Logo 4 file not found")
 
-
+# Example paths info
+st.info("""
+💡 **Example file paths:**
+- `NMCP.png` (same directory as app)
+- `logos/organization1.png` (subfolder)
+- `C:/path/to/logo.png` (absolute path)
+- `./assets/logo.jpg` (relative path)
+""")
 
 # Update logo configuration in session state
 st.session_state.logos = {
