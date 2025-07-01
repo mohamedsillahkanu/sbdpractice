@@ -339,7 +339,7 @@ st.markdown("**Visual mapping of all school GPS coordinates by chiefdom**")
 # Load the embedded data files
 try:
     # Load Excel file (embedded)
-    df_original = pd.read_excel("SBD_Submissions_07_01_2025.xlsx")
+    df_original = pd.read_excel("sbd first_submission_clean.xlsx")
     
     # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
@@ -433,18 +433,17 @@ with st.spinner("Generating BO District dashboard..."):
                 
                 doc.add_paragraph()  # Add space
                 
-                # Save matplotlib figure to temporary file for Word export
-                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                    # Save with optimized settings for Word document
-                    fig_bo.savefig(tmp_file.name, format='png', dpi=200, 
-                                  bbox_inches='tight', facecolor='white', 
-                                  edgecolor='none', pad_inches=0.1)
-                    
-                    # Add image to Word document with optimal size for page fit
-                    doc.add_picture(tmp_file.name, width=Inches(9.5))  # Fits well in Word page
-                    
-                    # Clean up temp file
-                    os.unlink(tmp_file.name)
+                # Save matplotlib figure as PNG and embed in Word
+                timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+                png_filename = f"BO_District_GPS_Dashboard_{timestamp}.png"
+                
+                # Save PNG file to current directory
+                fig_bo.savefig(png_filename, format='png', dpi=200, 
+                              bbox_inches='tight', facecolor='white', 
+                              edgecolor='none', pad_inches=0.1)
+                
+                # Add the saved PNG to Word document
+                doc.add_picture(png_filename, width=Inches(9.5))  # Fits well in Word page
                 
                 # Add summary information
                 doc.add_heading('Dashboard Summary', level=1)
@@ -455,6 +454,7 @@ with st.spinner("Generating BO District dashboard..."):
                 Total Records: {len(extracted_df[extracted_df['District'].str.upper() == 'BO'])}
                 GPS Records: {len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()])}
                 GPS Coverage: {(len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()]) / len(extracted_df[extracted_df['District'].str.upper() == 'BO']) * 100) if len(extracted_df[extracted_df['District'].str.upper() == 'BO']) > 0 else 0:.1f}%
+                PNG File Saved: {png_filename}
                 """
                 
                 for line in summary_text.strip().split('\n'):
@@ -468,10 +468,13 @@ with st.spinner("Generating BO District dashboard..."):
                 doc.save(word_buffer)
                 word_data = word_buffer.getvalue()
                 
+                # Success message
+                st.success(f"✅ PNG saved as: {png_filename}")
+                
                 st.download_button(
                     label="📄 Download BO District Dashboard (Word)",
                     data=word_data,
-                    file_name="BO_District_GPS_Dashboard.docx",
+                    file_name=f"BO_District_GPS_Dashboard_{timestamp}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
                 
