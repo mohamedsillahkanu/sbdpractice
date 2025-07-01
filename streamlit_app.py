@@ -147,7 +147,7 @@ def extract_gps_data_from_excel(df):
     
     return extracted_df
 
-def generate_target_school_data(chiefdoms):
+def generate_target_school_data(chiefdoms=None):
     """Generate target school data based on actual provided target data"""
     
     # Actual target data provided - mapped to shapefile chiefdom names
@@ -186,6 +186,10 @@ def generate_target_school_data(chiefdoms):
         "PAKI MASABONG": 29,           # Paki Masabong
         "SAFROKO LIMBA": 36,           # Safroko Limba
     }
+    
+    # If no specific chiefdoms requested, return all target data
+    if chiefdoms is None or len(chiefdoms) == 0:
+        return target_data
     
     # Return target data for requested chiefdoms
     result = {}
@@ -343,7 +347,7 @@ st.info("""
 # Load the embedded data files
 try:
     # Load Excel file (embedded)
-    df_original = pd.read_excel("SBD_Submissions_07_01_2025.xlsx")
+    df_original = pd.read_excel("sbd first_submission_clean.xlsx")
     
     # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
@@ -627,7 +631,7 @@ with st.spinner("Generating BOMBALI District coverage dashboard..."):
 # Coverage Analysis
 st.header("📈 Coverage Analysis")
 
-# Calculate coverage statistics
+# Calculate coverage statistics with debugging
 bo_data = extracted_df[extracted_df["District"].str.upper() == "BO"]
 bombali_data = extracted_df[extracted_df["District"].str.upper() == "BOMBALI"]
 
@@ -636,8 +640,17 @@ target_data_all = generate_target_school_data([])
 bo_chiefdoms = ['BADJIA', 'BAGBWE(BAGBE)', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE']
 bombali_chiefdoms = ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA']
 
-bo_target_total = sum([v for k, v in target_data_all.items() if k in bo_chiefdoms])
-bombali_target_total = sum([v for k, v in target_data_all.items() if k in bombali_chiefdoms])
+bo_target_total = sum([target_data_all.get(k, 0) for k in bo_chiefdoms])
+bombali_target_total = sum([target_data_all.get(k, 0) for k in bombali_chiefdoms])
+
+# Debug information
+st.write(f"**Debug Info:**")
+st.write(f"- BO District records: {len(bo_data)}")
+st.write(f"- BOMBALI District records: {len(bombali_data)}")
+st.write(f"- BO District target total: {bo_target_total}")
+st.write(f"- BOMBALI District target total: {bombali_target_total}")
+st.write(f"- Unique districts in data: {extracted_df['District'].unique()}")
+st.write(f"- Sample BO chiefdoms in data: {bo_data['Chiefdom'].unique()[:5] if len(bo_data) > 0 else 'None'}")
 
 # Coverage metrics
 col1, col2, col3, col4 = st.columns(4)
@@ -668,7 +681,7 @@ with col4:
         for chiefdom in chiefdoms:
             chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
             actual = len(chiefdom_data)
-            target = target_data_all.get(chiefdom, 20)
+            target = target_data_all.get(chiefdom, 0)
             coverage = (actual / target * 100) if target > 0 else 0
             
             if coverage >= 60:
