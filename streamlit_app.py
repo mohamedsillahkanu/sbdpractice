@@ -291,13 +291,6 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
             lats, lons = zip(*coords_extracted)
             ax.scatter(lons, lats, c='red', s=100, alpha=1.0, 
                       edgecolors='white', linewidth=2, zorder=100, marker='o')
-            
-            # Add labels for each GPS point
-            for i, (lat, lon) in enumerate(coords_extracted):
-                ax.annotate(f'S{i+1}', (lon, lat), xytext=(3, 3), 
-                           textcoords='offset points', fontsize=8, 
-                           fontweight='bold', color='red',
-                           bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
         
         # Set title and clean up axes
         ax.set_title(f'{chiefdom}\n({len(coords_extracted)} schools)', 
