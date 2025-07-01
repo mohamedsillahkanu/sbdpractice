@@ -1703,7 +1703,14 @@ with logo_col4:
     except:
         st.write("❌ Logo 4 file not found")
 
-
+# Example paths info
+st.info("""
+💡 **Example file paths:**
+- `NMCP.png` (same directory as app)
+- `logos/organization1.png` (subfolder)
+- `C:/path/to/logo.png` (absolute path)
+- `./assets/logo.jpg` (relative path)
+""")
 
 # Update logo configuration in session state
 st.session_state.logos = {
