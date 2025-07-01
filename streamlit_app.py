@@ -360,11 +360,9 @@ except Exception as e:
     st.info("💡 Make sure 'Chiefdom2021.shp' and supporting files (.dbf, .shx, .prj) are in the same directory as this app")
     st.stop()
 
-# Dashboard Settings
-st.sidebar.header("⚙️ Dashboard Settings")
-columns = 4  # Fixed to 4 columns
-show_data_info = st.sidebar.checkbox("Show data overview", value=True)
-st.sidebar.info("📊 Dashboard uses 4 columns layout for optimal viewing")
+# Dashboard Settings - Fixed configuration
+columns = 4  # Fixed to 4 columns for optimal Word export
+show_data_info = True  # Always show data overview
 
 if show_data_info:
     # Display data information
@@ -435,12 +433,15 @@ with st.spinner("Generating BO District dashboard..."):
                 
                 doc.add_paragraph()  # Add space
                 
-                # Save matplotlib figure to temporary file
+                # Save matplotlib figure to temporary file for Word export
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                    fig_bo.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
+                    # Save with optimized settings for Word document
+                    fig_bo.savefig(tmp_file.name, format='png', dpi=200, 
+                                  bbox_inches='tight', facecolor='white', 
+                                  edgecolor='none', pad_inches=0.1)
                     
-                    # Add image to Word document
-                    doc.add_picture(tmp_file.name, width=Inches(10))
+                    # Add image to Word document with optimal size for page fit
+                    doc.add_picture(tmp_file.name, width=Inches(9.5))  # Fits well in Word page
                     
                     # Clean up temp file
                     os.unlink(tmp_file.name)
@@ -529,12 +530,15 @@ with st.spinner("Generating BOMBALI District dashboard..."):
                 
                 doc.add_paragraph()  # Add space
                 
-                # Save matplotlib figure to temporary file
+                # Save matplotlib figure to temporary file for Word export
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                    fig_bombali.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
+                    # Save with optimized settings for Word document
+                    fig_bombali.savefig(tmp_file.name, format='png', dpi=200, 
+                                       bbox_inches='tight', facecolor='white', 
+                                       edgecolor='none', pad_inches=0.1)
                     
-                    # Add image to Word document
-                    doc.add_picture(tmp_file.name, width=Inches(10))
+                    # Add image to Word document with optimal size for page fit
+                    doc.add_picture(tmp_file.name, width=Inches(9.5))  # Fits well in Word page
                     
                     # Clean up temp file
                     os.unlink(tmp_file.name)
@@ -602,7 +606,8 @@ summary_df = pd.DataFrame(summary_data)
 st.dataframe(summary_df, use_container_width=True)
 
 # Raw data preview (optional)
-if st.checkbox("Show raw data preview"):
+show_raw_data = st.checkbox("Show raw data preview")
+if show_raw_data:
     st.subheader("📄 Raw Data Preview")
     st.dataframe(extracted_df.head(20))
 
@@ -672,8 +677,12 @@ if st.button("📋 Generate Combined Word Report", help="Generate a comprehensiv
             
             # Save BO figure to temporary file and add to document
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
-                fig_bo.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
-                doc.add_picture(tmp_file.name, width=Inches(10))
+                # Save with optimized settings for Word document
+                fig_bo.savefig(tmp_file.name, format='png', dpi=200, 
+                              bbox_inches='tight', facecolor='white', 
+                              edgecolor='none', pad_inches=0.1)
+                # Add image with optimal size for Word page
+                doc.add_picture(tmp_file.name, width=Inches(9.5))
                 os.unlink(tmp_file.name)
             
             # BO summary
