@@ -501,6 +501,190 @@ for district in ["BO", "BOMBALI"]:
 summary_df = pd.DataFrame(summary_data)
 st.dataframe(summary_df, use_container_width=True)
 
+# Section 2: School Coverage Dashboard
+st.header("📊 Section 2: School Coverage Analysis")
+
+def generate_dummy_target_data(chiefdoms):
+    """Generate dummy target school data for chiefdoms"""
+    import random
+    np.random.seed(42)  # For consistent dummy data
+    
+    target_data = {}
+    for chiefdom in chiefdoms:
+        # Generate realistic target numbers (10-100 schools per chiefdom)
+        target_data[chiefdom] = random.randint(10, 100)
+    
+    return target_data
+
+def get_coverage_color(coverage_percent):
+    """Get color based on coverage percentage"""
+    if coverage_percent < 20:
+        return '#d32f2f'  # Red
+    elif coverage_percent < 40:
+        return '#f57c00'  # Orange
+    elif coverage_percent < 60:
+        return '#fbc02d'  # Yellow
+    elif coverage_percent < 80:
+        return '#388e3c'  # Light Green
+    elif coverage_percent < 100:
+        return '#1976d2'  # Blue
+    else:
+        return '#4a148c'  # Purple (100% coverage)
+
+def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
+    """Create coverage dashboard for all chiefdoms in a district"""
+    
+    # Filter shapefile for the district
+    district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
+    
+    if len(district_gdf) == 0:
+        st.error(f"No chiefdoms found for {district_name} district in shapefile")
+        return None
+    
+    # Get unique chiefdoms from shapefile
+    chiefdoms = sorted(district_gdf['FIRST_CHIE'].dropna().unique())
+    
+    # Generate dummy target data
+    target_data = generate_dummy_target_data(chiefdoms)
+    
+    # Calculate rows needed
+    rows = math.ceil(len(chiefdoms) / cols)
+    
+    # Create subplot figure with increased vertical space
+    fig, axes = plt.subplots(rows, cols, figsize=(cols*5, rows*6))
+    fig.suptitle(f'{district_name} District - School Coverage Analysis', 
+                 fontsize=20, fontweight='bold', y=0.98)
+    
+    # Ensure axes is always 2D array
+    if rows == 1:
+        axes = axes.reshape(1, -1)
+    elif cols == 1:
+        axes = axes.reshape(-1, 1)
+    
+    # Plot each chiefdom
+    for idx, chiefdom in enumerate(chiefdoms):
+        row = idx // cols
+        col = idx % cols
+        ax = axes[row, col]
+        
+        # Filter shapefile for this specific chiefdom
+        chiefdom_gdf = district_gdf[district_gdf['FIRST_CHIE'] == chiefdom].copy()
+        
+        # Filter GPS data for this district and chiefdom with exact matching
+        district_data = extracted_df[extracted_df["District"].str.upper() == district_name.upper()].copy()
+        chiefdom_data = district_data[district_data["Chiefdom"] == chiefdom].copy()
+        
+        # Count actual schools (records) for this chiefdom
+        actual_schools = len(chiefdom_data)
+        
+        # Get target schools from dummy data
+        target_schools = target_data.get(chiefdom, 50)  # Default to 50 if not found
+        
+        # Calculate coverage percentage
+        coverage_percent = (actual_schools / target_schools * 100) if target_schools > 0 else 0
+        coverage_percent = min(coverage_percent, 100)  # Cap at 100%
+        
+        # Get color based on coverage
+        coverage_color = get_coverage_color(coverage_percent)
+        
+        # Plot chiefdom boundary with coverage color
+        chiefdom_gdf.plot(ax=ax, color=coverage_color, edgecolor='black', alpha=0.8, linewidth=2)
+        
+        # Create coverage text
+        coverage_text = f"{actual_schools}/{target_schools} ({coverage_percent:.0f}%)"
+        
+        # Set title with coverage information
+        ax.set_title(f'{chiefdom}\n{coverage_text}', 
+                    fontsize=11, fontweight='bold', pad=10)
+        
+        # Remove axis labels and ticks for cleaner look
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+        
+        # Remove the box frame
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        
+        # Add light grid
+        ax.grid(True, alpha=0.2, linestyle='--')
+        
+        # Set equal aspect ratio and tight layout
+        ax.set_aspect('equal')
+        
+        # Set bounds to chiefdom extent with some padding
+        bounds = chiefdom_gdf.total_bounds
+        padding = 0.01
+        ax.set_xlim(bounds[0] - padding, bounds[2] + padding)
+        ax.set_ylim(bounds[1] - padding, bounds[3] + padding)
+    
+    # Hide empty subplots
+    total_plots = rows * cols
+    for idx in range(len(chiefdoms), total_plots):
+        row = idx // cols
+        col = idx % cols
+        axes[row, col].set_visible(False)
+    
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
+    
+    return fig
+
+# BO District Coverage Dashboard
+st.subheader("2a. BO District - School Coverage")
+
+with st.spinner("Generating BO District coverage dashboard..."):
+    try:
+        fig_bo_coverage = create_coverage_dashboard(gdf, extracted_df, "BO", columns)
+        if fig_bo_coverage:
+            st.pyplot(fig_bo_coverage)
+            
+            # Save figure option
+            buffer_bo_coverage = BytesIO()
+            fig_bo_coverage.savefig(buffer_bo_coverage, format='png', dpi=300, bbox_inches='tight')
+            buffer_bo_coverage.seek(0)
+            
+            st.download_button(
+                label="📥 Download BO District Coverage Dashboard",
+                data=buffer_bo_coverage,
+                file_name="BO_District_Coverage_Dashboard.png",
+                mime="image/png"
+            )
+        else:
+            st.warning("Could not generate BO District coverage dashboard")
+    except Exception as e:
+        st.error(f"Error generating BO District coverage dashboard: {e}")
+
+st.divider()
+
+# BOMBALI District Coverage Dashboard
+st.subheader("2b. BOMBALI District - School Coverage")
+
+with st.spinner("Generating BOMBALI District coverage dashboard..."):
+    try:
+        fig_bombali_coverage = create_coverage_dashboard(gdf, extracted_df, "BOMBALI", columns)
+        if fig_bombali_coverage:
+            st.pyplot(fig_bombali_coverage)
+            
+            # Save figure option
+            buffer_bombali_coverage = BytesIO()
+            fig_bombali_coverage.savefig(buffer_bombali_coverage, format='png', dpi=300, bbox_inches='tight')
+            buffer_bombali_coverage.seek(0)
+            
+            st.download_button(
+                label="📥 Download BOMBALI District Coverage Dashboard",
+                data=buffer_bombali_coverage,
+                file_name="BOMBALI_District_Coverage_Dashboard.png",
+                mime="image/png"
+            )
+        else:
+            st.warning("Could not generate BOMBALI District coverage dashboard")
+    except Exception as e:
+        st.error(f"Error generating BOMBALI District coverage dashboard: {e}")
+
 # Raw data preview
 if st.checkbox("Show raw data preview"):
     st.subheader("📄 Raw Data Preview")
@@ -518,4 +702,3 @@ if st.checkbox("Show raw data preview"):
 # Footer
 st.markdown("---")
 st.markdown("**📊 Chiefdom GPS Dashboard | School-Based Distribution Analysis**")
-st.markdown("**ICF-SL | A local firm with international standards")
