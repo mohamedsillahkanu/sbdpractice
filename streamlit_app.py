@@ -1106,19 +1106,26 @@ try:
     bombali_gps_coverage = (len(bombali_data[bombali_data['GPS_Location'].notna()]) / len(bombali_data) * 100) if len(bombali_data) > 0 else 0
     
     # District comparison table
+    bo_chiefdoms = ['BADJIA', 'BAGBWE(BAGBE)', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE']
+    bombali_chiefdoms = ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA']
+    
+    target_data_all = generate_target_school_data([])
+    bo_target_total = sum([v for k, v in target_data_all.items() if k in bo_chiefdoms])
+    bombali_target_total = sum([v for k, v in target_data_all.items() if k in bombali_chiefdoms])
+    
     comparison_data = {
         'Metric': ['Schools Surveyed', 'GPS Coverage (%)', 'Target Schools', 'Survey Coverage (%)'],
         'BO District': [
             f"{key_summary['bo_schools']:,}",
             f"{bo_gps_coverage:.1f}%", 
-            f"{sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BADJIA', 'BAGBWE', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE'])]):,}",
-            f"{(key_summary['bo_schools'] / sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BADJIA', 'BAGBWE', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE'])]) * 100):.1f}%"
+            f"{bo_target_total:,}",
+            f"{(key_summary['bo_schools'] / bo_target_total * 100):.1f}%" if bo_target_total > 0 else "0.0%"
         ],
         'BOMBALI District': [
             f"{key_summary['bombali_schools']:,}",
             f"{bombali_gps_coverage:.1f}%",
-            f"{sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA'])]):,}",
-            f"{(key_summary['bombali_schools'] / sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA'])]) * 100):.1f}%"
+            f"{bombali_target_total:,}",
+            f"{(key_summary['bombali_schools'] / bombali_target_total * 100):.1f}%" if bombali_target_total > 0 else "0.0%"
         ]
     }
     
