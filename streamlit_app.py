@@ -336,51 +336,28 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
 st.title("🗺️ Section 1: GPS School Locations Dashboard")
 st.markdown("**Visual mapping of all school GPS coordinates by chiefdom**")
 
-# Sidebar for file uploads
-st.sidebar.header("📁 File Upload")
-uploaded_excel = st.sidebar.file_uploader("Upload Excel file", type=['xlsx', 'xls'])
-uploaded_shapefile = st.sidebar.file_uploader("Upload Shapefile (.shp)", type=['shp'])
-
-# Load the data
-if uploaded_excel is not None:
-    try:
-        df_original = pd.read_excel(uploaded_excel)
-        # Extract GPS data with chiefdom mapping
-        extracted_df = extract_gps_data_from_excel(df_original)
-        st.success(f"✅ Excel file loaded successfully! Found {len(extracted_df)} records.")
-    except Exception as e:
-        st.error(f"❌ Error loading Excel file: {e}")
-        st.stop()
-else:
-    st.warning("⚠️ Please upload an Excel file to continue.")
+# Load the embedded data files
+try:
+    # Load Excel file (embedded)
+    df_original = pd.read_excel("SBD_Submissions_07_01_2025.xlsx")
+    
+    # Extract GPS data with chiefdom mapping
+    extracted_df = extract_gps_data_from_excel(df_original)
+    st.success(f"✅ Excel file loaded successfully! Found {len(extracted_df)} records.")
+    
+except Exception as e:
+    st.error(f"❌ Error loading Excel file: {e}")
+    st.info("💡 Make sure 'sbd first_submission_clean.xlsx' is in the same directory as this app")
     st.stop()
 
-# Load shapefile
-if uploaded_shapefile is not None:
-    try:
-        # Save uploaded file temporarily
-        import tempfile
-        import os
-        
-        # Create temporary directory
-        temp_dir = tempfile.mkdtemp()
-        shp_path = os.path.join(temp_dir, "chiefdom.shp")
-        
-        # Save the uploaded file
-        with open(shp_path, "wb") as f:
-            f.write(uploaded_shapefile.getbuffer())
-        
-        # Also need to upload supporting files (.dbf, .shx, .prj, etc.)
-        st.sidebar.info("📎 Also upload supporting shapefile files (.dbf, .shx, .prj) if available")
-        
-        gdf = gpd.read_file(shp_path)
-        st.success(f"✅ Shapefile loaded successfully! Found {len(gdf)} features.")
-        
-    except Exception as e:
-        st.error(f"❌ Could not load shapefile: {e}")
-        st.stop()
-else:
-    st.warning("⚠️ Please upload a shapefile to continue.")
+# Load shapefile (embedded)
+try:
+    gdf = gpd.read_file("Chiefdom2021.shp")
+    st.success(f"✅ Shapefile loaded successfully! Found {len(gdf)} features.")
+    
+except Exception as e:
+    st.error(f"❌ Could not load shapefile: {e}")
+    st.info("💡 Make sure 'Chiefdom2021.shp' and supporting files (.dbf, .shx, .prj) are in the same directory as this app")
     st.stop()
 
 # Dashboard Settings
