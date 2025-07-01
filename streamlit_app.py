@@ -1161,25 +1161,22 @@ except Exception as e:
 # Section 5: Summary of Distribution and Coverage
 st.header("📊 Section 5: Summary of Distribution and Coverage")
 
-def generate_simple_summary(extracted_df, itn_df):
+def generate_simple_summary(itn_df):
     """Generate simple summary with just totals and coverage"""
     
     summary_data = []
     
     # District totals
     for district in ["BO", "BOMBALI"]:
-        district_extracted = extracted_df[extracted_df["District"].str.upper() == district.upper()]
-        district_itn = itn_df[itn_df["District"].str.upper() == district.upper()]
+        district_data = itn_df[itn_df["District"].str.upper() == district.upper()]
         
-        schools_surveyed = len(district_extracted)
-        total_enrollment = int(district_itn["Total_Enrollment"].sum())
-        total_itns_distributed = int(district_itn["Distributed_ITNs"].sum())
+        total_enrollment = int(district_data["Total_Enrollment"].sum())
+        total_itns_distributed = int(district_data["Distributed_ITNs"].sum())
         coverage = (total_itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
         
         summary_data.append({
             'Level': 'District',
             'Name': district,
-            'Schools_Surveyed': schools_surveyed,
             'Total_Enrollment': total_enrollment,
             'ITNs_Distributed': total_itns_distributed,
             'Coverage': f"{coverage:.1f}%"
@@ -1187,25 +1184,21 @@ def generate_simple_summary(extracted_df, itn_df):
     
     # Chiefdom totals for each district
     for district in ["BO", "BOMBALI"]:
-        district_extracted = extracted_df[extracted_df["District"].str.upper() == district.upper()]
-        district_itn = itn_df[itn_df["District"].str.upper() == district.upper()]
+        district_data = itn_df[itn_df["District"].str.upper() == district.upper()]
         
         # Group by chiefdom
-        chiefdoms = district_itn['Chiefdom'].dropna().unique()
+        chiefdoms = district_data['Chiefdom'].dropna().unique()
         
         for chiefdom in sorted(chiefdoms):
-            chiefdom_extracted = district_extracted[district_extracted['Chiefdom'] == chiefdom]
-            chiefdom_itn = district_itn[district_itn['Chiefdom'] == chiefdom]
+            chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
             
-            schools_surveyed = len(chiefdom_extracted)
-            total_enrollment = int(chiefdom_itn["Total_Enrollment"].sum())
-            total_itns_distributed = int(chiefdom_itn["Distributed_ITNs"].sum())
+            total_enrollment = int(chiefdom_data["Total_Enrollment"].sum())
+            total_itns_distributed = int(chiefdom_data["Distributed_ITNs"].sum())
             coverage = (total_itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
             
             summary_data.append({
                 'Level': f'{district} Chiefdom',
                 'Name': chiefdom,
-                'Schools_Surveyed': schools_surveyed,
                 'Total_Enrollment': total_enrollment,
                 'ITNs_Distributed': total_itns_distributed,
                 'Coverage': f"{coverage:.1f}%"
@@ -1215,87 +1208,20 @@ def generate_simple_summary(extracted_df, itn_df):
 
 # Generate and display simple summary
 try:
-# Generate and display simple summary
-try:
-    # District Level Summary
-    st.subheader("📊 District Level Summary")
+    summary_data = generate_simple_summary(itn_df)
+    summary_df = pd.DataFrame(summary_data)
     
-    district_summary = []
-    for district in ["BO", "BOMBALI"]:
-        district_extracted = extracted_df[extracted_df["District"].str.upper() == district.upper()]
-        district_itn = itn_df[itn_df["District"].str.upper() == district.upper()]
-        
-        schools_surveyed = len(district_extracted)
-        total_enrollment = int(district_itn["Total_Enrollment"].sum())
-        total_itns_distributed = int(district_itn["Distributed_ITNs"].sum())
-        coverage = (total_itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
-        
-        district_summary.append({
-            'District': district,
-            'Schools_Surveyed': schools_surveyed,
-            'Total_Enrollment': total_enrollment,
-            'ITNs_Distributed': total_itns_distributed,
-            'Coverage': f"{coverage:.1f}%"
-        })
+    st.subheader("📊 Distribution and Coverage Summary")
+    st.dataframe(summary_df, use_container_width=True)
     
-    district_df = pd.DataFrame(district_summary)
-    st.dataframe(district_df, use_container_width=True)
-    
-    # BO District Chiefdom Level
-    st.subheader("📊 BO District - Chiefdom Level")
-    
-    bo_chiefdom_summary = []
-    district_extracted = extracted_df[extracted_df["District"].str.upper() == "BO"]
-    district_itn = itn_df[itn_df["District"].str.upper() == "BO"]
-    
-    chiefdoms = sorted(district_itn['Chiefdom'].dropna().unique())
-    for chiefdom in chiefdoms:
-        chiefdom_extracted = district_extracted[district_extracted['Chiefdom'] == chiefdom]
-        chiefdom_itn = district_itn[district_itn['Chiefdom'] == chiefdom]
-        
-        schools_surveyed = len(chiefdom_extracted)
-        total_enrollment = int(chiefdom_itn["Total_Enrollment"].sum())
-        total_itns_distributed = int(chiefdom_itn["Distributed_ITNs"].sum())
-        coverage = (total_itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
-        
-        bo_chiefdom_summary.append({
-            'Chiefdom': chiefdom,
-            'Schools_Surveyed': schools_surveyed,
-            'Total_Enrollment': total_enrollment,
-            'ITNs_Distributed': total_itns_distributed,
-            'Coverage': f"{coverage:.1f}%"
-        })
-    
-    bo_chiefdom_df = pd.DataFrame(bo_chiefdom_summary)
-    st.dataframe(bo_chiefdom_df, use_container_width=True)
-    
-    # BOMBALI District Chiefdom Level
-    st.subheader("📊 BOMBALI District - Chiefdom Level")
-    
-    bombali_chiefdom_summary = []
-    district_extracted = extracted_df[extracted_df["District"].str.upper() == "BOMBALI"]
-    district_itn = itn_df[itn_df["District"].str.upper() == "BOMBALI"]
-    
-    chiefdoms = sorted(district_itn['Chiefdom'].dropna().unique())
-    for chiefdom in chiefdoms:
-        chiefdom_extracted = district_extracted[district_extracted['Chiefdom'] == chiefdom]
-        chiefdom_itn = district_itn[district_itn['Chiefdom'] == chiefdom]
-        
-        schools_surveyed = len(chiefdom_extracted)
-        total_enrollment = int(chiefdom_itn["Total_Enrollment"].sum())
-        total_itns_distributed = int(chiefdom_itn["Distributed_ITNs"].sum())
-        coverage = (total_itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
-        
-        bombali_chiefdom_summary.append({
-            'Chiefdom': chiefdom,
-            'Schools_Surveyed': schools_surveyed,
-            'Total_Enrollment': total_enrollment,
-            'ITNs_Distributed': total_itns_distributed,
-            'Coverage': f"{coverage:.1f}%"
-        })
-    
-    bombali_chiefdom_df = pd.DataFrame(bombali_chiefdom_summary)
-    st.dataframe(bombali_chiefdom_df, use_container_width=True)
+    # Download option
+    summary_csv = summary_df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Summary CSV",
+        data=summary_csv,
+        file_name=f"Distribution_Coverage_Summary_{filename_date}.csv",
+        mime="text/csv"
+    )
 
 except Exception as e:
     st.error(f"Error generating summary: {e}")
@@ -1703,14 +1629,7 @@ with logo_col4:
     except:
         st.write("❌ Logo 4 file not found")
 
-# Example paths info
-st.info("""
-💡 **Example file paths:**
-- `NMCP.png` (same directory as app)
-- `logos/organization1.png` (subfolder)
-- `C:/path/to/logo.png` (absolute path)
-- `./assets/logo.jpg` (relative path)
-""")
+
 
 # Update logo configuration in session state
 st.session_state.logos = {
