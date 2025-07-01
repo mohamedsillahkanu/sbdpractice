@@ -506,73 +506,72 @@ with st.spinner("Generating BOMBALI District dashboard..."):
                 mime="image/png"
             )
             
-            # PDF Export for BOMBALI District
+            # Word Export for BOMBALI District
             try:
-                from reportlab.lib.pagesizes import A4, landscape
-                from reportlab.platypus import SimpleDocTemplate, Image, Paragraph, Spacer
-                from reportlab.lib.styles import getSampleStyleSheet
-                from reportlab.lib.units import inch
+                from docx import Document
+                from docx.shared import Inches, Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
                 import tempfile
                 import os
                 
-                # Create PDF buffer
-                pdf_buffer = BytesIO()
-                
-                # Create PDF document in landscape mode
-                doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4), 
-                                      topMargin=0.5*inch, bottomMargin=0.5*inch,
-                                      leftMargin=0.5*inch, rightMargin=0.5*inch)
-                story = []
-                
-                # Get styles
-                styles = getSampleStyleSheet()
-                title_style = styles['Title']
-                normal_style = styles['Normal']
+                # Create Word document
+                doc = Document()
                 
                 # Add title
-                story.append(Paragraph("BOMBALI District - GPS School Locations Dashboard", title_style))
-                story.append(Spacer(1, 20))
+                title = doc.add_heading('BOMBALI District - GPS School Locations Dashboard', 0)
+                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add generation date
+                date_para = doc.add_paragraph()
+                date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                date_run = date_para.add_run(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                date_run.font.size = Pt(12)
+                
+                doc.add_paragraph()  # Add space
                 
                 # Save matplotlib figure to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
                     fig_bombali.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
                     
-                    # Add image to PDF
-                    img = Image(tmp_file.name, width=10*inch, height=7*inch)
-                    story.append(img)
+                    # Add image to Word document
+                    doc.add_picture(tmp_file.name, width=Inches(10))
                     
                     # Clean up temp file
                     os.unlink(tmp_file.name)
                 
                 # Add summary information
-                story.append(Spacer(1, 20))
+                doc.add_heading('Dashboard Summary', level=1)
+                
                 summary_text = f"""
-                <b>Dashboard Summary:</b><br/>
-                • District: BOMBALI<br/>
-                • Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])}<br/>
-                • Total Records: {len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI'])}<br/>
-                • GPS Records: {len(extracted_df[(extracted_df['District'].str.upper() == 'BOMBALI') & extracted_df['GPS_Location'].notna()])}<br/>
-                • Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+                District: BOMBALI
+                Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])}
+                Total Records: {len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI'])}
+                GPS Records: {len(extracted_df[(extracted_df['District'].str.upper() == 'BOMBALI') & extracted_df['GPS_Location'].notna()])}
+                GPS Coverage: {(len(extracted_df[(extracted_df['District'].str.upper() == 'BOMBALI') & extracted_df['GPS_Location'].notna()]) / len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI']) * 100) if len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI']) > 0 else 0:.1f}%
                 """
-                story.append(Paragraph(summary_text, normal_style))
                 
-                # Build PDF
-                doc.build(story)
+                for line in summary_text.strip().split('\n'):
+                    if line.strip():
+                        p = doc.add_paragraph()
+                        p.add_run('• ').bold = True
+                        p.add_run(line.strip())
                 
-                # Get PDF data
-                pdf_data = pdf_buffer.getvalue()
+                # Save to BytesIO
+                word_buffer = BytesIO()
+                doc.save(word_buffer)
+                word_data = word_buffer.getvalue()
                 
                 st.download_button(
-                    label="📄 Download BOMBALI District Dashboard (PDF)",
-                    data=pdf_data,
-                    file_name="BOMBALI_District_GPS_Dashboard.pdf",
-                    mime="application/pdf"
+                    label="📄 Download BOMBALI District Dashboard (Word)",
+                    data=word_data,
+                    file_name="BOMBALI_District_GPS_Dashboard.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
                 
             except ImportError:
-                st.warning("⚠️ PDF export requires reportlab library. Install with: pip install reportlab")
+                st.warning("⚠️ Word export requires python-docx library. Install with: pip install python-docx")
             except Exception as e:
-                st.warning(f"⚠️ PDF export failed: {str(e)}")
+                st.warning(f"⚠️ Word export failed: {str(e)}")
         else:
             st.warning("Could not generate BOMBALI District dashboard")
     except Exception as e:
@@ -602,157 +601,143 @@ for district in ["BO", "BOMBALI"]:
 summary_df = pd.DataFrame(summary_data)
 st.dataframe(summary_df, use_container_width=True)
 
-# Raw data preview
+# Raw data preview (optional)
 if st.checkbox("Show raw data preview"):
     st.subheader("📄 Raw Data Preview")
     st.dataframe(extracted_df.head(20))
-    
-    # Download raw data
-    csv_data = extracted_df.to_csv(index=False)
-    st.download_button(
-        label="📥 Download Extracted Data as CSV",
-        data=csv_data,
-        file_name="gps_extracted_data.csv",
-        mime="text/csv"
-    )
 
-# Export All Dashboards as Combined PDF
-st.header("📄 Combined PDF Export")
+# Export All Dashboards as Combined Word Document
+st.header("📄 Combined Word Export")
 
-if st.button("📋 Generate Combined PDF Report", help="Generate a comprehensive PDF with both districts"):
+if st.button("📋 Generate Combined Word Report", help="Generate a comprehensive Word document with both districts"):
     try:
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.platypus import SimpleDocTemplate, Image, Paragraph, Spacer, PageBreak
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import inch
-        from reportlab.lib.enums import TA_CENTER
+        from docx import Document
+        from docx.shared import Inches, Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
         import tempfile
         import os
         
-        # Create PDF buffer
-        pdf_buffer = BytesIO()
+        # Create Word document
+        doc = Document()
         
-        # Create PDF document in landscape mode
-        doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4), 
-                              topMargin=0.5*inch, bottomMargin=0.5*inch,
-                              leftMargin=0.5*inch, rightMargin=0.5*inch)
-        story = []
+        # Add main title
+        title = doc.add_heading('School-Based Distribution (SBD)', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # Get styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            fontSize=24,
-            alignment=TA_CENTER,
-            spaceAfter=30
-        )
-        heading_style = styles['Heading1']
-        normal_style = styles['Normal']
+        subtitle = doc.add_heading('GPS School Locations Dashboard', level=1)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # Cover page
-        story.append(Paragraph("School-Based Distribution (SBD)", title_style))
-        story.append(Paragraph("GPS School Locations Dashboard", heading_style))
-        story.append(Spacer(1, 30))
+        # Add generation date
+        date_para = doc.add_paragraph()
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        date_run = date_para.add_run(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        date_run.font.size = Pt(12)
+        date_run.bold = True
         
-        # Summary information
-        current_time = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+        doc.add_page_break()
+        
+        # Executive Summary
+        doc.add_heading('Executive Summary', level=1)
+        
         bo_records = len(extracted_df[extracted_df['District'].str.upper() == 'BO'])
         bombali_records = len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI'])
         total_gps = len(extracted_df[extracted_df['GPS_Location'].notna()])
         
         summary_text = f"""
-        <b>Report Summary</b><br/><br/>
-        <b>Districts Covered:</b> BO, BOMBALI<br/>
-        <b>Total Records:</b> {len(extracted_df):,}<br/>
-        <b>BO District Records:</b> {bo_records:,}<br/>
-        <b>BOMBALI District Records:</b> {bombali_records:,}<br/>
-        <b>GPS Records:</b> {total_gps:,}<br/>
-        <b>Generated:</b> {current_time}<br/><br/>
+        This comprehensive dashboard report presents GPS school location analysis for BO and BOMBALI districts:
         
-        This report contains visual mapping of all school GPS coordinates by chiefdom 
-        for both BO and BOMBALI districts. Each chiefdom is displayed with its 
-        administrative boundaries and red markers indicating school locations.
+        • Districts Covered: BO, BOMBALI
+        • Total Records: {len(extracted_df):,}
+        • BO District Records: {bo_records:,}
+        • BOMBALI District Records: {bombali_records:,}
+        • GPS Records: {total_gps:,}
+        • Overall GPS Coverage: {(total_gps/len(extracted_df)*100) if len(extracted_df) > 0 else 0:.1f}%
+        
+        This report contains visual mapping of all school GPS coordinates by chiefdom. Each chiefdom is displayed with its administrative boundaries and red markers indicating school locations.
         """
-        story.append(Paragraph(summary_text, normal_style))
-        story.append(PageBreak())
         
-        # BO District page
+        for line in summary_text.strip().split('\n'):
+            if line.strip():
+                if line.startswith('•'):
+                    p = doc.add_paragraph()
+                    p.add_run(line.strip())
+                else:
+                    doc.add_paragraph(line.strip())
+        
+        doc.add_page_break()
+        
+        # BO District section
         if 'fig_bo' in locals():
-            story.append(Paragraph("BO District - GPS School Locations", heading_style))
-            story.append(Spacer(1, 20))
+            doc.add_heading('BO District - GPS School Locations', level=1)
             
-            # Save BO figure to temporary file
+            # Save BO figure to temporary file and add to document
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
                 fig_bo.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
-                
-                # Add image to PDF
-                img = Image(tmp_file.name, width=10*inch, height=7*inch)
-                story.append(img)
-                
-                # Clean up temp file
+                doc.add_picture(tmp_file.name, width=Inches(10))
                 os.unlink(tmp_file.name)
             
             # BO summary
+            doc.add_heading('BO District Summary', level=2)
             bo_gps_count = len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()])
-            bo_summary = f"""
-            <b>BO District Summary:</b><br/>
-            • Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BO'])}<br/>
-            • Total Records: {bo_records}<br/>
-            • GPS Records: {bo_gps_count}<br/>
-            • GPS Coverage: {(bo_gps_count/bo_records*100) if bo_records > 0 else 0:.1f}%
-            """
-            story.append(Spacer(1, 20))
-            story.append(Paragraph(bo_summary, normal_style))
-            story.append(PageBreak())
-        
-        # BOMBALI District page
-        if 'fig_bombali' in locals():
-            story.append(Paragraph("BOMBALI District - GPS School Locations", heading_style))
-            story.append(Spacer(1, 20))
             
-            # Save BOMBALI figure to temporary file
+            bo_summary_items = [
+                f"Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BO'])}",
+                f"Total Records: {bo_records:,}",
+                f"GPS Records: {bo_gps_count:,}",
+                f"GPS Coverage: {(bo_gps_count/bo_records*100) if bo_records > 0 else 0:.1f}%"
+            ]
+            
+            for item in bo_summary_items:
+                p = doc.add_paragraph()
+                p.add_run('• ').bold = True
+                p.add_run(item)
+            
+            doc.add_page_break()
+        
+        # BOMBALI District section
+        if 'fig_bombali' in locals():
+            doc.add_heading('BOMBALI District - GPS School Locations', level=1)
+            
+            # Save BOMBALI figure to temporary file and add to document
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
                 fig_bombali.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
-                
-                # Add image to PDF
-                img = Image(tmp_file.name, width=10*inch, height=7*inch)
-                story.append(img)
-                
-                # Clean up temp file
+                doc.add_picture(tmp_file.name, width=Inches(10))
                 os.unlink(tmp_file.name)
             
             # BOMBALI summary
+            doc.add_heading('BOMBALI District Summary', level=2)
             bombali_gps_count = len(extracted_df[(extracted_df['District'].str.upper() == 'BOMBALI') & extracted_df['GPS_Location'].notna()])
-            bombali_summary = f"""
-            <b>BOMBALI District Summary:</b><br/>
-            • Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])}<br/>
-            • Total Records: {bombali_records}<br/>
-            • GPS Records: {bombali_gps_count}<br/>
-            • GPS Coverage: {(bombali_gps_count/bombali_records*100) if bombali_records > 0 else 0:.1f}%
-            """
-            story.append(Spacer(1, 20))
-            story.append(Paragraph(bombali_summary, normal_style))
+            
+            bombali_summary_items = [
+                f"Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])}",
+                f"Total Records: {bombali_records:,}",
+                f"GPS Records: {bombali_gps_count:,}",
+                f"GPS Coverage: {(bombali_gps_count/bombali_records*100) if bombali_records > 0 else 0:.1f}%"
+            ]
+            
+            for item in bombali_summary_items:
+                p = doc.add_paragraph()
+                p.add_run('• ').bold = True
+                p.add_run(item)
         
-        # Build PDF
-        doc.build(story)
+        # Save to BytesIO
+        word_buffer = BytesIO()
+        doc.save(word_buffer)
+        word_data = word_buffer.getvalue()
         
-        # Get PDF data
-        pdf_data = pdf_buffer.getvalue()
-        
-        st.success("✅ Combined PDF report generated successfully!")
+        st.success("✅ Combined Word report generated successfully!")
         st.download_button(
-            label="💾 Download Combined GPS Dashboard Report (PDF)",
-            data=pdf_data,
-            file_name=f"GPS_School_Locations_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf",
-            help="Download comprehensive PDF report with both districts"
+            label="💾 Download Combined GPS Dashboard Report (Word)",
+            data=word_data,
+            file_name=f"GPS_School_Locations_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            help="Download comprehensive Word report with both districts"
         )
         
     except ImportError:
-        st.error("❌ PDF generation requires reportlab library. Please install it using: pip install reportlab")
+        st.error("❌ Word generation requires python-docx library. Please install it using: pip install python-docx")
     except Exception as e:
-        st.error(f"❌ Error generating combined PDF: {str(e)}")
+        st.error(f"❌ Error generating combined Word document: {str(e)}")
 
 # Memory optimization - close matplotlib figures
 plt.close('all')
