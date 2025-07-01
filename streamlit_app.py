@@ -412,73 +412,72 @@ with st.spinner("Generating BO District dashboard..."):
                 mime="image/png"
             )
             
-            # PDF Export for BO District
+            # Word Export for BO District
             try:
-                from reportlab.lib.pagesizes import A4, landscape
-                from reportlab.platypus import SimpleDocTemplate, Image, Paragraph, Spacer
-                from reportlab.lib.styles import getSampleStyleSheet
-                from reportlab.lib.units import inch
+                from docx import Document
+                from docx.shared import Inches, Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
                 import tempfile
                 import os
                 
-                # Create PDF buffer
-                pdf_buffer = BytesIO()
-                
-                # Create PDF document in landscape mode
-                doc = SimpleDocTemplate(pdf_buffer, pagesize=landscape(A4), 
-                                      topMargin=0.5*inch, bottomMargin=0.5*inch,
-                                      leftMargin=0.5*inch, rightMargin=0.5*inch)
-                story = []
-                
-                # Get styles
-                styles = getSampleStyleSheet()
-                title_style = styles['Title']
-                normal_style = styles['Normal']
+                # Create Word document
+                doc = Document()
                 
                 # Add title
-                story.append(Paragraph("BO District - GPS School Locations Dashboard", title_style))
-                story.append(Spacer(1, 20))
+                title = doc.add_heading('BO District - GPS School Locations Dashboard', 0)
+                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add generation date
+                date_para = doc.add_paragraph()
+                date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                date_run = date_para.add_run(f"Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                date_run.font.size = Pt(12)
+                
+                doc.add_paragraph()  # Add space
                 
                 # Save matplotlib figure to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
                     fig_bo.savefig(tmp_file.name, format='png', dpi=300, bbox_inches='tight')
                     
-                    # Add image to PDF
-                    img = Image(tmp_file.name, width=10*inch, height=7*inch)
-                    story.append(img)
+                    # Add image to Word document
+                    doc.add_picture(tmp_file.name, width=Inches(10))
                     
                     # Clean up temp file
                     os.unlink(tmp_file.name)
                 
                 # Add summary information
-                story.append(Spacer(1, 20))
+                doc.add_heading('Dashboard Summary', level=1)
+                
                 summary_text = f"""
-                <b>Dashboard Summary:</b><br/>
-                • District: BO<br/>
-                • Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BO'])}<br/>
-                • Total Records: {len(extracted_df[extracted_df['District'].str.upper() == 'BO'])}<br/>
-                • GPS Records: {len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()])}<br/>
-                • Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
+                District: BO
+                Total Chiefdoms: {len(gdf[gdf['FIRST_DNAM'] == 'BO'])}
+                Total Records: {len(extracted_df[extracted_df['District'].str.upper() == 'BO'])}
+                GPS Records: {len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()])}
+                GPS Coverage: {(len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()]) / len(extracted_df[extracted_df['District'].str.upper() == 'BO']) * 100) if len(extracted_df[extracted_df['District'].str.upper() == 'BO']) > 0 else 0:.1f}%
                 """
-                story.append(Paragraph(summary_text, normal_style))
                 
-                # Build PDF
-                doc.build(story)
+                for line in summary_text.strip().split('\n'):
+                    if line.strip():
+                        p = doc.add_paragraph()
+                        p.add_run('• ').bold = True
+                        p.add_run(line.strip())
                 
-                # Get PDF data
-                pdf_data = pdf_buffer.getvalue()
+                # Save to BytesIO
+                word_buffer = BytesIO()
+                doc.save(word_buffer)
+                word_data = word_buffer.getvalue()
                 
                 st.download_button(
-                    label="📄 Download BO District Dashboard (PDF)",
-                    data=pdf_data,
-                    file_name="BO_District_GPS_Dashboard.pdf",
-                    mime="application/pdf"
+                    label="📄 Download BO District Dashboard (Word)",
+                    data=word_data,
+                    file_name="BO_District_GPS_Dashboard.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
                 
             except ImportError:
-                st.warning("⚠️ PDF export requires reportlab library. Install with: pip install reportlab")
+                st.warning("⚠️ Word export requires python-docx library. Install with: pip install python-docx")
             except Exception as e:
-                st.warning(f"⚠️ PDF export failed: {str(e)}")
+                st.warning(f"⚠️ Word export failed: {str(e)}")
         else:
             st.warning("Could not generate BO District dashboard")
     except Exception as e:
