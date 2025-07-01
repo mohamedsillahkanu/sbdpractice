@@ -685,6 +685,234 @@ with st.spinner("Generating BOMBALI District coverage dashboard..."):
     except Exception as e:
         st.error(f"Error generating BOMBALI District coverage dashboard: {e}")
 
+# Section 3: Enrollment Analysis
+st.header("📚 Section 3: Enrollment Analysis")
+
+def extract_enrollment_data_from_excel(df):
+    """Extract enrollment data from the Excel file"""
+    # Create empty lists to store extracted data
+    districts, chiefdoms, census_enrollment, current_enrollment = [], [], [], []
+    
+    # Get chiefdom mapping
+    chiefdom_mapping = create_chiefdom_mapping()
+    
+    # Process each row in the "Scan QR code" column
+    for idx, qr_text in enumerate(df["Scan QR code"]):
+        if pd.isna(qr_text):
+            districts.append(None)
+            chiefdoms.append(None)
+            census_enrollment.append(None)
+            current_enrollment.append(None)
+            continue
+            
+        # Extract values using regex patterns
+        district_match = re.search(r"District:\s*([^\n]+)", str(qr_text))
+        district = district_match.group(1).strip() if district_match else None
+        districts.append(district)
+        
+        chiefdom_match = re.search(r"Chiefdom:\s*([^\n]+)", str(qr_text))
+        original_chiefdom = chiefdom_match.group(1).strip() if chiefdom_match else None
+        
+        # Map chiefdom name to match shapefile
+        mapped_chiefdom = map_chiefdom_name(original_chiefdom, chiefdom_mapping)
+        chiefdoms.append(mapped_chiefdom)
+        
+        # Extract Census data (2024 enrollment) from "Enrollment" column
+        if "Enrollment" in df.columns:
+            census_data = df["Enrollment"].iloc[idx]
+            census_enrollment.append(census_data if pd.notna(census_data) else 0)
+        else:
+            census_enrollment.append(0)
+        
+        # Calculate current enrollment (sum of all class enrollments)
+        current_total = 0
+        for class_num in range(1, 6):  # Classes 1-5
+            enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
+            if enrollment_col in df.columns:
+                class_enrollment = df[enrollment_col].iloc[idx]
+                if pd.notna(class_enrollment):
+                    current_total += int(class_enrollment)
+        
+        current_enrollment.append(current_total)
+    
+    # Create a new DataFrame with extracted values
+    enrollment_df = pd.DataFrame({
+        "District": districts,
+        "Chiefdom": chiefdoms,
+        "Census_2024": census_enrollment,
+        "Current_Enrollment": current_enrollment
+    })
+    
+    return enrollment_df
+
+def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
+    """Create enrollment comparison dashboard for all chiefdoms in a district"""
+    
+    # Filter shapefile for the district
+    district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
+    
+    if len(district_gdf) == 0:
+        st.error(f"No chiefdoms found for {district_name} district in shapefile")
+        return None
+    
+    # Get unique chiefdoms from shapefile
+    chiefdoms = sorted(district_gdf['FIRST_CHIE'].dropna().unique())
+    
+    # Calculate rows needed
+    rows = math.ceil(len(chiefdoms) / cols)
+    
+    # Create subplot figure with increased vertical space
+    fig, axes = plt.subplots(rows, cols, figsize=(cols*5, rows*6))
+    fig.suptitle(f'{district_name} District - Enrollment Analysis (Census 2024 vs Current)', 
+                 fontsize=20, fontweight='bold', y=0.98)
+    
+    # Ensure axes is always 2D array
+    if rows == 1:
+        axes = axes.reshape(1, -1)
+    elif cols == 1:
+        axes = axes.reshape(-1, 1)
+    
+    # Plot each chiefdom
+    for idx, chiefdom in enumerate(chiefdoms):
+        row = idx // cols
+        col = idx % cols
+        ax = axes[row, col]
+        
+        # Filter shapefile for this specific chiefdom
+        chiefdom_gdf = district_gdf[district_gdf['FIRST_CHIE'] == chiefdom].copy()
+        
+        # Filter enrollment data for this district and chiefdom
+        district_data = enrollment_df[enrollment_df["District"].str.upper() == district_name.upper()].copy()
+        chiefdom_data = district_data[district_data["Chiefdom"] == chiefdom].copy()
+        
+        # Calculate totals for this chiefdom
+        census_total = int(chiefdom_data["Census_2024"].sum()) if len(chiefdom_data) > 0 else 0
+        current_total = int(chiefdom_data["Current_Enrollment"].sum()) if len(chiefdom_data) > 0 else 0
+        
+        # Plot chiefdom boundary (light gray)
+        chiefdom_gdf.plot(ax=ax, color='lightgray', edgecolor='black', alpha=0.7, linewidth=2)
+        
+        # Create enrollment comparison text with colors
+        enrollment_text = f"({census_total}, {current_total})"
+        
+        # Set title with enrollment information
+        ax.set_title(f'{chiefdom}\n{enrollment_text}', 
+                    fontsize=11, fontweight='bold', pad=10)
+        
+        # Add colored text boxes in the center of the chiefdom
+        if len(chiefdom_gdf) > 0:
+            # Get center of chiefdom
+            bounds = chiefdom_gdf.total_bounds
+            center_x = (bounds[0] + bounds[2]) / 2
+            center_y = (bounds[1] + bounds[3]) / 2
+            
+            # Add green text for census data
+            ax.text(center_x, center_y + 0.003, f'{census_total}', 
+                   fontsize=14, fontweight='bold', color='green', 
+                   ha='center', va='center',
+                   bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.9, edgecolor='green'))
+            
+            # Add orange text for current data
+            ax.text(center_x, center_y - 0.003, f'{current_total}', 
+                   fontsize=14, fontweight='bold', color='orange', 
+                   ha='center', va='center',
+                   bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.9, edgecolor='orange'))
+        
+        # Remove axis labels and ticks for cleaner look
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+        
+        # Remove the box frame
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        
+        # Add light grid
+        ax.grid(True, alpha=0.2, linestyle='--')
+        
+        # Set equal aspect ratio and tight layout
+        ax.set_aspect('equal')
+        
+        # Set bounds to chiefdom extent with some padding
+        bounds = chiefdom_gdf.total_bounds
+        padding = 0.01
+        ax.set_xlim(bounds[0] - padding, bounds[2] + padding)
+        ax.set_ylim(bounds[1] - padding, bounds[3] + padding)
+    
+    # Hide empty subplots
+    total_plots = rows * cols
+    for idx in range(len(chiefdoms), total_plots):
+        row = idx // cols
+        col = idx % cols
+        axes[row, col].set_visible(False)
+    
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
+    
+    return fig
+
+# Extract enrollment data
+try:
+    enrollment_df = extract_enrollment_data_from_excel(df_original)
+except Exception as e:
+    st.error(f"Error extracting enrollment data: {e}")
+    enrollment_df = pd.DataFrame()
+
+# BO District Enrollment Dashboard
+st.subheader("3a. BO District - Enrollment Analysis")
+
+with st.spinner("Generating BO District enrollment dashboard..."):
+    try:
+        fig_bo_enrollment = create_enrollment_dashboard(gdf, enrollment_df, "BO", columns)
+        if fig_bo_enrollment:
+            st.pyplot(fig_bo_enrollment)
+            
+            # Save figure option
+            buffer_bo_enrollment = BytesIO()
+            fig_bo_enrollment.savefig(buffer_bo_enrollment, format='png', dpi=300, bbox_inches='tight')
+            buffer_bo_enrollment.seek(0)
+            
+            st.download_button(
+                label="📥 Download BO District Enrollment Dashboard",
+                data=buffer_bo_enrollment,
+                file_name="BO_District_Enrollment_Dashboard.png",
+                mime="image/png"
+            )
+        else:
+            st.warning("Could not generate BO District enrollment dashboard")
+    except Exception as e:
+        st.error(f"Error generating BO District enrollment dashboard: {e}")
+
+st.divider()
+
+# BOMBALI District Enrollment Dashboard
+st.subheader("3b. BOMBALI District - Enrollment Analysis")
+
+with st.spinner("Generating BOMBALI District enrollment dashboard..."):
+    try:
+        fig_bombali_enrollment = create_enrollment_dashboard(gdf, enrollment_df, "BOMBALI", columns)
+        if fig_bombali_enrollment:
+            st.pyplot(fig_bombali_enrollment)
+            
+            # Save figure option
+            buffer_bombali_enrollment = BytesIO()
+            fig_bombali_enrollment.savefig(buffer_bombali_enrollment, format='png', dpi=300, bbox_inches='tight')
+            buffer_bombali_enrollment.seek(0)
+            
+            st.download_button(
+                label="📥 Download BOMBALI District Enrollment Dashboard",
+                data=buffer_bombali_enrollment,
+                file_name="BOMBALI_District_Enrollment_Dashboard.png",
+                mime="image/png"
+            )
+        else:
+            st.warning("Could not generate BOMBALI District enrollment dashboard")
+    except Exception as e:
+        st.error(f"Error generating BOMBALI District enrollment dashboard: {e}")
+
 # Raw data preview
 if st.checkbox("Show raw data preview"):
     st.subheader("📄 Raw Data Preview")
