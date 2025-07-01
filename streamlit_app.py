@@ -274,17 +274,48 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
         
         # Extract and plot GPS coordinates for this chiefdom
         coords_extracted = []
+        debug_info = ""
         if len(chiefdom_data) > 0 and not chiefdom_data["GPS_Location"].isna().all():
             gps_data = chiefdom_data["GPS_Location"].dropna()
             
-            for gps_val in gps_data:
+            # Debug information for GPS processing
+            debug_gps_info = []
+            debug_gps_info.append(f"Debug {chiefdom}: Found {len(chiefdom_data)} records, {len(gps_data)} with GPS data")
+            
+            for idx, gps_val in enumerate(gps_data):
                 if pd.notna(gps_val):
+                    debug_gps_info.append(f"GPS {idx+1}: '{gps_val}'")
                     lat, lon = parse_gps_coordinates(gps_val)
                     
                     # Validate coordinates for Sierra Leone
                     if lat is not None and lon is not None:
                         if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
-                            coords_extracted.append([lat, lon, str(gps_val)])  # Include original GPS string for debugging
+                            coords_extracted.append([lat, lon, str(gps_val)])
+                            debug_gps_info.append(f"✅ Valid: {lat}, {lon}")
+                        else:
+                            debug_gps_info.append(f"❌ Invalid (outside SL): {lat}, {lon}")
+                    else:
+                        debug_gps_info.append(f"❌ Could not parse: {gps_val}")
+            
+            # Show debug info for BAGBO specifically
+            if chiefdom == "BAGBO":
+                st.write("🔍 **BAGBO Debug Information:**")
+                for info in debug_gps_info:
+                    st.write(f"• {info}")
+                
+                # Show the actual data for BAGBO
+                st.write("**BAGBO Raw Data:**")
+                bagbo_debug_data = chiefdom_data[['District', 'Chiefdom', 'GPS_Location']].copy()
+                st.dataframe(bagbo_debug_data)
+        else:
+            if chiefdom == "BAGBO":
+                st.write("🔍 **BAGBO Debug Information:**")
+                st.write(f"• Found {len(chiefdom_data)} records for BAGBO")
+                st.write("• No GPS data available or all GPS values are null")
+                if len(chiefdom_data) > 0:
+                    st.write("**BAGBO Raw Data:**")
+                    bagbo_debug_data = chiefdom_data[['District', 'Chiefdom', 'GPS_Location']].copy()
+                    st.dataframe(bagbo_debug_data)
         
         # Handle overlapping coordinates by adding small offsets
         def separate_overlapping_points(coords, min_distance=0.001):
@@ -783,8 +814,8 @@ def extract_itn_data_from_excel(df):
         # Calculate total ITNs (distributed + left at school)
         itns_total = itns_distributed
         for class_num in range(1, 6):  # Classes 1-5
-            # ITNs left at school for absent pupils
-            left_col = f"How many ITNs were left at the school for pupils who were absent in Class {class_num}?"
+            # ITNs left at school for absent pupils - using correct column name
+            left_col = "ITNs left at the school for pupils who were absent."
             if left_col in df.columns:
                 left_itns = df[left_col].iloc[idx]
                 if pd.notna(left_itns):
@@ -1557,6 +1588,7 @@ with logo_col4:
         st.image(logo4_path, width=150, caption="Logo 4 Preview")
     except:
         st.write("❌ Logo 4 file not found")
+
 
 
 # Update logo configuration in session state
