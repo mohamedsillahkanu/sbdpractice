@@ -685,13 +685,13 @@ with st.spinner("Generating BOMBALI District coverage dashboard..."):
     except Exception as e:
         st.error(f"Error generating BOMBALI District coverage dashboard: {e}")
 
-# Section 3: Enrollment Analysis
-st.header("📚 Section 3: Enrollment Analysis")
+# Section 3: ITN Coverage Analysis
+st.header("🛡️ Section 3: ITN Coverage Analysis")
 
-def extract_enrollment_data_from_excel(df):
-    """Extract enrollment data from the Excel file"""
+def extract_itn_data_from_excel(df):
+    """Extract ITN coverage data from the Excel file"""
     # Create empty lists to store extracted data
-    districts, chiefdoms, census_enrollment, current_enrollment = [], [], [], []
+    districts, chiefdoms, total_enrollment, total_itns = [], [], [], []
     
     # Get chiefdom mapping
     chiefdom_mapping = create_chiefdom_mapping()
@@ -701,8 +701,8 @@ def extract_enrollment_data_from_excel(df):
         if pd.isna(qr_text):
             districts.append(None)
             chiefdoms.append(None)
-            census_enrollment.append(None)
-            current_enrollment.append(None)
+            total_enrollment.append(0)
+            total_itns.append(0)
             continue
             
         # Extract values using regex patterns
@@ -717,36 +717,47 @@ def extract_enrollment_data_from_excel(df):
         mapped_chiefdom = map_chiefdom_name(original_chiefdom, chiefdom_mapping)
         chiefdoms.append(mapped_chiefdom)
         
-        # Extract Census data (2024 enrollment) from "Enrollment" column
-        if "Enrollment" in df.columns:
-            census_data = df["Enrollment"].iloc[idx]
-            census_enrollment.append(census_data if pd.notna(census_data) else 0)
-        else:
-            census_enrollment.append(0)
-        
-        # Calculate current enrollment (sum of all class enrollments)
-        current_total = 0
+        # Calculate total enrollment (sum of all class enrollments)
+        enrollment_total = 0
         for class_num in range(1, 6):  # Classes 1-5
             enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
             if enrollment_col in df.columns:
                 class_enrollment = df[enrollment_col].iloc[idx]
                 if pd.notna(class_enrollment):
-                    current_total += int(class_enrollment)
+                    enrollment_total += int(class_enrollment)
         
-        current_enrollment.append(current_total)
+        total_enrollment.append(enrollment_total)
+        
+        # Calculate total ITNs distributed (boys + girls)
+        itns_total = 0
+        for class_num in range(1, 6):  # Classes 1-5
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
+            
+            if boys_col in df.columns:
+                boys_itns = df[boys_col].iloc[idx]
+                if pd.notna(boys_itns):
+                    itns_total += int(boys_itns)
+            
+            if girls_col in df.columns:
+                girls_itns = df[girls_col].iloc[idx]
+                if pd.notna(girls_itns):
+                    itns_total += int(girls_itns)
+        
+        total_itns.append(itns_total)
     
     # Create a new DataFrame with extracted values
-    enrollment_df = pd.DataFrame({
+    itn_df = pd.DataFrame({
         "District": districts,
         "Chiefdom": chiefdoms,
-        "Census_2024": census_enrollment,
-        "Current_Enrollment": current_enrollment
+        "Total_Enrollment": total_enrollment,
+        "Total_ITNs": total_itns
     })
     
-    return enrollment_df
+    return itn_df
 
-def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
-    """Create enrollment comparison dashboard for all chiefdoms in a district"""
+def create_itn_coverage_dashboard(gdf, itn_df, district_name, cols=4):
+    """Create ITN coverage dashboard for all chiefdoms in a district"""
     
     # Filter shapefile for the district
     district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
@@ -763,7 +774,7 @@ def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
     
     # Create subplot figure with increased vertical space
     fig, axes = plt.subplots(rows, cols, figsize=(cols*5, rows*6))
-    fig.suptitle(f'{district_name} District - Enrollment Analysis (Census 2024 vs Current)', 
+    fig.suptitle(f'{district_name} District - ITN Coverage Analysis', 
                  fontsize=20, fontweight='bold', y=0.98)
     
     # Ensure axes is always 2D array
@@ -781,50 +792,43 @@ def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
         # Filter shapefile for this specific chiefdom
         chiefdom_gdf = district_gdf[district_gdf['FIRST_CHIE'] == chiefdom].copy()
         
-        # Filter enrollment data for this district and chiefdom
-        district_data = enrollment_df[enrollment_df["District"].str.upper() == district_name.upper()].copy()
+        # Filter ITN data for this district and chiefdom
+        district_data = itn_df[itn_df["District"].str.upper() == district_name.upper()].copy()
         chiefdom_data = district_data[district_data["Chiefdom"] == chiefdom].copy()
         
         # Calculate totals for this chiefdom
-        census_total = int(chiefdom_data["Census_2024"].sum()) if len(chiefdom_data) > 0 else 0
-        current_total = int(chiefdom_data["Current_Enrollment"].sum()) if len(chiefdom_data) > 0 else 0
+        enrollment_total = int(chiefdom_data["Total_Enrollment"].sum()) if len(chiefdom_data) > 0 else 0
+        itns_total = int(chiefdom_data["Total_ITNs"].sum()) if len(chiefdom_data) > 0 else 0
         
-        # Calculate percentage change (Census as baseline)
-        if census_total > 0:
-            percent_change = ((current_total - census_total) / census_total) * 100
-        else:
-            percent_change = 0 if current_total == 0 else 100  # If no census data but current data exists
+        # Calculate coverage percentage
+        coverage_percent = (itns_total / enrollment_total * 100) if enrollment_total > 0 else 0
+        coverage_percent = min(coverage_percent, 100)  # Cap at 100%
         
-        # Plot chiefdom boundary (light gray)
-        chiefdom_gdf.plot(ax=ax, color='lightgray', edgecolor='black', alpha=0.7, linewidth=2)
+        # Get color based on coverage (same as Section 2)
+        coverage_color = get_coverage_color(coverage_percent)
         
-        # Create enrollment comparison text with colors
-        enrollment_text = f"({census_total}, {current_total})"
+        # Plot chiefdom boundary with coverage color
+        chiefdom_gdf.plot(ax=ax, color=coverage_color, edgecolor='black', alpha=0.8, linewidth=2)
         
-        # Set title with enrollment information
-        ax.set_title(f'{chiefdom}\n{enrollment_text}', 
+        # Create ITN coverage text
+        itn_text = f"({itns_total}, {coverage_percent:.0f}%)"
+        
+        # Set title with ITN coverage information
+        ax.set_title(f'{chiefdom}\n{itn_text}', 
                     fontsize=11, fontweight='bold', pad=10)
         
-        # Add percentage change in the center of the chiefdom
+        # Add coverage percentage in the center of the chiefdom
         if len(chiefdom_gdf) > 0:
             # Get center of chiefdom
             bounds = chiefdom_gdf.total_bounds
             center_x = (bounds[0] + bounds[2]) / 2
             center_y = (bounds[1] + bounds[3]) / 2
             
-            # Format percentage change
-            if percent_change >= 0:
-                change_text = f"+{percent_change:.1f}%"
-                change_color = 'green'
-            else:
-                change_text = f"{percent_change:.1f}%"
-                change_color = 'red'
-            
-            # Add percentage change text in the center
-            ax.text(center_x, center_y, change_text, 
-                   fontsize=16, fontweight='bold', color=change_color, 
+            # Add coverage percentage text in the center
+            ax.text(center_x, center_y, f"{coverage_percent:.0f}%", 
+                   fontsize=16, fontweight='bold', color='white', 
                    ha='center', va='center',
-                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9, edgecolor=change_color))
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='black', alpha=0.7))
         
         # Remove axis labels and ticks for cleaner look
         ax.set_xticks([])
@@ -862,64 +866,64 @@ def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
     
     return fig
 
-# Extract enrollment data
+# Extract ITN coverage data
 try:
-    enrollment_df = extract_enrollment_data_from_excel(df_original)
+    itn_df = extract_itn_data_from_excel(df_original)
 except Exception as e:
-    st.error(f"Error extracting enrollment data: {e}")
-    enrollment_df = pd.DataFrame()
+    st.error(f"Error extracting ITN data: {e}")
+    itn_df = pd.DataFrame()
 
-# BO District Enrollment Dashboard
-st.subheader("3a. BO District - Enrollment Analysis")
+# BO District ITN Coverage Dashboard
+st.subheader("3a. BO District - ITN Coverage")
 
-with st.spinner("Generating BO District enrollment dashboard..."):
+with st.spinner("Generating BO District ITN coverage dashboard..."):
     try:
-        fig_bo_enrollment = create_enrollment_dashboard(gdf, enrollment_df, "BO", columns)
-        if fig_bo_enrollment:
-            st.pyplot(fig_bo_enrollment)
+        fig_bo_itn = create_itn_coverage_dashboard(gdf, itn_df, "BO", columns)
+        if fig_bo_itn:
+            st.pyplot(fig_bo_itn)
             
             # Save figure option
-            buffer_bo_enrollment = BytesIO()
-            fig_bo_enrollment.savefig(buffer_bo_enrollment, format='png', dpi=300, bbox_inches='tight')
-            buffer_bo_enrollment.seek(0)
+            buffer_bo_itn = BytesIO()
+            fig_bo_itn.savefig(buffer_bo_itn, format='png', dpi=300, bbox_inches='tight')
+            buffer_bo_itn.seek(0)
             
             st.download_button(
-                label="📥 Download BO District Enrollment Dashboard",
-                data=buffer_bo_enrollment,
-                file_name="BO_District_Enrollment_Dashboard.png",
+                label="📥 Download BO District ITN Coverage Dashboard",
+                data=buffer_bo_itn,
+                file_name="BO_District_ITN_Coverage_Dashboard.png",
                 mime="image/png"
             )
         else:
-            st.warning("Could not generate BO District enrollment dashboard")
+            st.warning("Could not generate BO District ITN coverage dashboard")
     except Exception as e:
-        st.error(f"Error generating BO District enrollment dashboard: {e}")
+        st.error(f"Error generating BO District ITN coverage dashboard: {e}")
 
 st.divider()
 
-# BOMBALI District Enrollment Dashboard
-st.subheader("3b. BOMBALI District - Enrollment Analysis")
+# BOMBALI District ITN Coverage Dashboard
+st.subheader("3b. BOMBALI District - ITN Coverage")
 
-with st.spinner("Generating BOMBALI District enrollment dashboard..."):
+with st.spinner("Generating BOMBALI District ITN coverage dashboard..."):
     try:
-        fig_bombali_enrollment = create_enrollment_dashboard(gdf, enrollment_df, "BOMBALI", columns)
-        if fig_bombali_enrollment:
-            st.pyplot(fig_bombali_enrollment)
+        fig_bombali_itn = create_itn_coverage_dashboard(gdf, itn_df, "BOMBALI", columns)
+        if fig_bombali_itn:
+            st.pyplot(fig_bombali_itn)
             
             # Save figure option
-            buffer_bombali_enrollment = BytesIO()
-            fig_bombali_enrollment.savefig(buffer_bombali_enrollment, format='png', dpi=300, bbox_inches='tight')
-            buffer_bombali_enrollment.seek(0)
+            buffer_bombali_itn = BytesIO()
+            fig_bombali_itn.savefig(buffer_bombali_itn, format='png', dpi=300, bbox_inches='tight')
+            buffer_bombali_itn.seek(0)
             
             st.download_button(
-                label="📥 Download BOMBALI District Enrollment Dashboard",
-                data=buffer_bombali_enrollment,
-                file_name="BOMBALI_District_Enrollment_Dashboard.png",
+                label="📥 Download BOMBALI District ITN Coverage Dashboard",
+                data=buffer_bombali_itn,
+                file_name="BOMBALI_District_ITN_Coverage_Dashboard.png",
                 mime="image/png"
             )
         else:
-            st.warning("Could not generate BOMBALI District enrollment dashboard")
+            st.warning("Could not generate BOMBALI District ITN coverage dashboard")
     except Exception as e:
-        st.error(f"Error generating BOMBALI District enrollment dashboard: {e}")
+        st.error(f"Error generating BOMBALI District ITN coverage dashboard: {e}")
 
 # Raw data preview
 if st.checkbox("Show raw data preview"):
@@ -937,4 +941,4 @@ if st.checkbox("Show raw data preview"):
 
 # Footer
 st.markdown("---")
-st.markdown("**📊 Chiefdom GPS Dashboard | School-Based Distribution Analysis**")
+st.markdown("**📊 ICF-SL | A local firm with international standard**")
