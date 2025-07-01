@@ -131,15 +131,11 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
     # Get unique chiefdoms from shapefile
     chiefdoms = sorted(district_gdf['FIRST_CHIE'].dropna().unique())
     
-    st.write(f"**Found {len(chiefdoms)} chiefdoms in {district_name} District:**")
-    for i, chiefdom in enumerate(chiefdoms):
-        st.write(f"{i+1}. {chiefdom}")
-    
     # Calculate rows needed
     rows = math.ceil(len(chiefdoms) / cols)
     
-    # Create subplot figure
-    fig, axes = plt.subplots(rows, cols, figsize=(cols*5, rows*4))
+    # Create subplot figure with increased vertical space
+    fig, axes = plt.subplots(rows, cols, figsize=(cols*5, rows*6))
     fig.suptitle(f'{district_name} District - All Chiefdoms with GPS Locations', 
                  fontsize=20, fontweight='bold', y=0.98)
     
@@ -192,11 +188,21 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
                            fontweight='bold', color='red',
                            bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
         
-        # Set title and labels
+        # Set title and clean up axes
         ax.set_title(f'{chiefdom}\n({len(coords_extracted)} schools)', 
                     fontsize=12, fontweight='bold', pad=10)
-        ax.set_xlabel('Longitude', fontsize=10)
-        ax.set_ylabel('Latitude', fontsize=10)
+        
+        # Remove axis labels and ticks for cleaner look
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+        
+        # Remove the box frame
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
         
         # Add grid
         ax.grid(True, alpha=0.3, linestyle='--')
@@ -218,7 +224,7 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
         axes[row, col].set_visible(False)
     
     plt.tight_layout()
-    plt.subplots_adjust(top=0.95)
+    plt.subplots_adjust(top=0.93, hspace=0.4, wspace=0.3)
     
     return fig
 
@@ -226,26 +232,14 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
 st.title("🗺️ Chiefdom GPS Dashboard - BO and BOMBALI Districts")
 st.markdown("**Comprehensive view of all chiefdoms with GPS school locations**")
 
-# File upload section
-st.sidebar.header("📁 File Upload")
-uploaded_file = st.sidebar.file_uploader("Upload Excel file", type=['xlsx'])
-
-if uploaded_file is None:
-    # Default file path
-    uploaded_file = "sbd first_submission_clean.xlsx"
-
 # Load the data
 try:
-    if isinstance(uploaded_file, str):
-        df_original = pd.read_excel(uploaded_file)
-        st.sidebar.success("✅ Default file loaded successfully!")
-    else:
-        df_original = pd.read_excel(uploaded_file)
-        st.sidebar.success("✅ Uploaded file loaded successfully!")
+    df_original = pd.read_excel("sbd first_submission_clean.xlsx")
+    st.success("✅ Data file loaded successfully!")
     
     # Extract GPS data
     extracted_df = extract_gps_data_from_excel(df_original)
-    st.sidebar.info(f"📊 Extracted {len(extracted_df)} records")
+    st.info(f"📊 Extracted {len(extracted_df)} records")
     
 except Exception as e:
     st.error(f"❌ Error loading Excel file: {e}")
@@ -254,19 +248,16 @@ except Exception as e:
 # Load shapefile
 try:
     gdf = gpd.read_file("Chiefdom2021.shp")
-    st.sidebar.success("✅ Shapefile loaded successfully!")
-    
-    # Display shapefile info
-    st.sidebar.info(f"🗺️ Shapefile contains {len(gdf)} chiefdoms")
+    st.success("✅ Shapefile loaded successfully!")
+    st.info(f"🗺️ Shapefile contains {len(gdf)} chiefdoms")
     
 except Exception as e:
-    st.sidebar.error(f"❌ Could not load shapefile: {e}")
+    st.error(f"❌ Could not load shapefile: {e}")
     st.stop()
 
-# Dashboard Controls
-st.sidebar.header("⚙️ Dashboard Settings")
-columns = st.sidebar.slider("Number of columns", min_value=2, max_value=6, value=4)
-show_data_info = st.sidebar.checkbox("Show data information", value=True)
+# Dashboard Settings
+columns = 4
+show_data_info = True
 
 if show_data_info:
     # Display data information
@@ -295,7 +286,6 @@ st.header("🗺️ District Dashboards")
 
 # BO District Dashboard
 st.subheader("1a. BO District - All Chiefdoms")
-st.write("**Individual maps for each chiefdom in BO District with GPS school locations**")
 
 with st.spinner("Generating BO District dashboard..."):
     try:
@@ -384,25 +374,6 @@ if st.checkbox("Show raw data preview"):
         file_name="extracted_gps_data.csv",
         mime="text/csv"
     )
-
-# Additional information
-st.sidebar.markdown("---")
-st.sidebar.markdown("""
-### 📋 Dashboard Features:
-- **Subplot Grid**: 4 columns (adjustable) × n rows
-- **GPS Plotting**: Red markers for school locations
-- **Chiefdom Boundaries**: Light blue with navy borders
-- **School Labels**: S1, S2, etc. for each GPS point
-- **Download Options**: High-quality PNG exports
-""")
-
-st.sidebar.markdown("""
-### 🎯 Usage:
-1. Adjust number of columns using slider
-2. View comprehensive chiefdom grids
-3. Download dashboard images
-4. Check summary statistics
-""")
 
 # Footer
 st.markdown("---")
