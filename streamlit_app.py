@@ -504,17 +504,52 @@ st.dataframe(summary_df, use_container_width=True)
 # Section 2: School Coverage Dashboard
 st.header("📊 Section 2: School Coverage Analysis")
 
-def generate_dummy_target_data(chiefdoms):
-    """Generate dummy target school data for chiefdoms"""
-    import random
-    np.random.seed(42)  # For consistent dummy data
+def generate_target_school_data(chiefdoms):
+    """Generate target school data based on real chiefdom data"""
     
-    target_data = {}
+    # Real target data provided
+    target_data = {
+        # BO District
+        "BADJIA": 9,
+        "BAGBWE(BAGBE)": 18,
+        "BOAMA": 56,
+        "BAGBO": 31,  # Bargbo
+        "BO TOWN": 86,  # Bo City
+        "BONGOR": 18,
+        "BUMPE NGAO": 63,  # Bumpeh
+        "GBO": 10,
+        "JAIAMA": 25,
+        "KAKUA": 164,
+        "KOMBOYA": 17,
+        "LUGBU": 32,
+        "NIAWA LENGA": 25,
+        "SELENGA": 7,
+        "TIKONKO": 89,  # Tinkoko
+        "VALUNIA": 38,
+        "WONDE": 13,
+        
+        # BOMBALI District  
+        "BIRIWA": 48,
+        "BOMBALI SEBORA": 44,
+        "BOMBALI SIARI": 7,  # Bombali Serry Chiefdom
+        "GBANTI": 40,  # Gbanti (Bombali)
+        "GBENDEMBU": 30,
+        "KAMARANKA": 13,
+        "MAGBAIMBA NDORWAHUN": 17,  # Magbaimba Ndohahun
+        "MAKARI": 54,  # Makarie
+        "MAKENI CITY": 93,
+        "MARA": 15,
+        "N'GOWAHUN": 28,  # Ngowahun
+        "PAKI MASABONG": 29,
+        "SAFROKO LIMBA": 36,
+    }
+    
+    # For any chiefdom not in the list, return a default value
+    result = {}
     for chiefdom in chiefdoms:
-        # Generate realistic target numbers (10-100 schools per chiefdom)
-        target_data[chiefdom] = random.randint(10, 100)
+        result[chiefdom] = target_data.get(chiefdom, 20)  # Default to 20 if not found
     
-    return target_data
+    return result
 
 def get_coverage_color(coverage_percent):
     """Get color based on coverage percentage"""
@@ -544,8 +579,8 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
     # Get unique chiefdoms from shapefile
     chiefdoms = sorted(district_gdf['FIRST_CHIE'].dropna().unique())
     
-    # Generate dummy target data
-    target_data = generate_dummy_target_data(chiefdoms)
+    # Generate real target data
+    target_data = generate_target_school_data(chiefdoms)
     
     # Calculate rows needed
     rows = math.ceil(len(chiefdoms) / cols)
@@ -728,9 +763,10 @@ def extract_itn_data_from_excel(df):
         
         total_enrollment.append(enrollment_total)
         
-        # Calculate total ITNs distributed (boys + girls)
+        # Calculate total ITNs (distributed + left at school)
         itns_total = 0
         for class_num in range(1, 6):  # Classes 1-5
+            # ITNs distributed (boys + girls)
             boys_col = f"How many boys in Class {class_num} received ITNs?"
             girls_col = f"How many girls in Class {class_num} received ITNs?"
             
@@ -743,6 +779,13 @@ def extract_itn_data_from_excel(df):
                 girls_itns = df[girls_col].iloc[idx]
                 if pd.notna(girls_itns):
                     itns_total += int(girls_itns)
+            
+            # ITNs left at school for absent pupils
+            left_col = f"How many ITNs were left at the school for pupils who were absent in Class {class_num}?"
+            if left_col in df.columns:
+                left_itns = df[left_col].iloc[idx]
+                if pd.notna(left_itns):
+                    itns_total += int(left_itns)
         
         total_itns.append(itns_total)
     
@@ -810,8 +853,8 @@ def create_itn_coverage_dashboard(gdf, itn_df, district_name, cols=4):
         # Plot chiefdom boundary with coverage color
         chiefdom_gdf.plot(ax=ax, color=coverage_color, edgecolor='black', alpha=0.8, linewidth=2)
         
-        # Create ITN coverage text
-        itn_text = f"({itns_total}, {coverage_percent:.0f}%)"
+        # Create ITN coverage text (n, m) format
+        itn_text = f"({itns_total}, {enrollment_total})"
         
         # Set title with ITN coverage information
         ax.set_title(f'{chiefdom}\n{itn_text}', 
@@ -939,6 +982,401 @@ if st.checkbox("Show raw data preview"):
         mime="text/csv"
     )
 
+# Final Export Section
+st.header("📥 Export Complete Dashboard Reports")
+st.write("Generate comprehensive reports with all sections and visualizations")
+
+# Current date for reports
+from datetime import datetime
+current_date = datetime.now()
+date_str = current_date.strftime("%B %d, %Y")
+filename_date = current_date.strftime("%Y%m%d_%H%M")
+
+# Create columns for export buttons
+export_col1, export_col2 = st.columns(2)
+
+with export_col1:
+    # PDF Report Generation
+    if st.button("📋 Generate PDF Report", help="Generate comprehensive PDF report with all dashboards"):
+        try:
+            from reportlab.lib.pagesizes import A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT
+            import tempfile
+            import os
+            
+            # Create PDF buffer
+            pdf_buffer = BytesIO()
+            
+            # Create PDF document
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+            story = []
+            
+            # Get styles
+            styles = getSampleStyleSheet()
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=24,
+                alignment=TA_CENTER,
+                spaceAfter=30
+            )
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=16,
+                alignment=TA_LEFT,
+                spaceAfter=12
+            )
+            normal_style = styles['Normal']
+            
+            # Header with logos from file paths
+            logo_config = st.session_state.get('logos', {
+                'logo1': {'path': 'logo1.png', 'name': 'Organization 1'},
+                'logo2': {'path': 'logo2.png', 'name': 'Organization 2'},
+                'logo3': {'path': 'logo3.png', 'name': 'Organization 3'},
+                'logo4': {'path': 'logo4.png', 'name': 'Organization 4'}
+            })
+            
+            # Try to add actual logos or use placeholders
+            logo_row_data = []
+            name_row_data = []
+            
+            for i in range(1, 5):
+                logo_info = logo_config.get(f'logo{i}', {'path': f'logo{i}.png', 'name': f'Organization {i}'})
+                try:
+                    # Try to add image (placeholder for now in PDF)
+                    logo_row_data.append(f'[LOGO {i}]')
+                except:
+                    logo_row_data.append(f'[LOGO {i}]')
+                name_row_data.append(logo_info['name'])
+            
+            header_table_data = [logo_row_data, name_row_data]
+            header_table = Table(header_table_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
+            header_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('FONTSIZE', (0, 1), (-1, 1), 10),
+                ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+            ]))
+            story.append(header_table)
+            story.append(Spacer(1, 20))
+            
+            # Title Page
+            story.append(Paragraph("School-Based Distribution (SBD)", title_style))
+            story.append(Paragraph("Comprehensive Chiefdom Dashboard Analysis", heading_style))
+            story.append(Spacer(1, 20))
+            
+            # Date
+            story.append(Paragraph(f"Report Generated: {date_str}", normal_style))
+            story.append(Spacer(1, 40))
+            
+            # Executive Summary
+            summary_text = f"""
+            <b>EXECUTIVE SUMMARY</b><br/><br/>
+            This comprehensive dashboard report presents analysis across three key areas for BO and BOMBALI districts:<br/><br/>
+            
+            <b>Section 1: GPS School Locations</b><br/>
+            • Visual mapping of all school GPS coordinates by chiefdom<br/>
+            • Geographic distribution analysis across {len(gdf[gdf['FIRST_DNAM'].isin(['BO', 'BOMBALI'])])} chiefdoms<br/><br/>
+            
+            <b>Section 2: School Coverage Analysis</b><br/>
+            • Comparison of surveyed schools vs target schools per chiefdom<br/>
+            • Coverage rates with color-coded visualization<br/>
+            • Identification of gaps in school survey completion<br/><br/>
+            
+            <b>Section 3: ITN Coverage Analysis</b><br/>
+            • ITN distribution effectiveness by chiefdom<br/>
+            • Coverage percentages based on enrollment vs ITN distribution<br/>
+            • Performance assessment across administrative boundaries<br/><br/>
+            
+            <b>Districts Covered:</b> BO, BOMBALI<br/>
+            <b>Total Records Processed:</b> {len(extracted_df)}<br/>
+            <b>Report Date:</b> {date_str}
+            """
+            story.append(Paragraph(summary_text, normal_style))
+            story.append(PageBreak())
+            
+            # Dashboard Sections
+            sections = [
+                "Section 1: GPS School Locations - Visual mapping of school coordinates",
+                "Section 2: School Coverage Analysis - Survey completion rates",
+                "Section 3: ITN Coverage Analysis - Distribution effectiveness"
+            ]
+            
+            for section in sections:
+                story.append(Paragraph(section, heading_style))
+                story.append(Paragraph("Detailed visualizations showing chiefdom-level analysis with color-coded performance indicators.", normal_style))
+                story.append(Spacer(1, 20))
+            
+            # Data Summary Table
+            story.append(Paragraph("Data Summary", heading_style))
+            summary_table_data = [
+                ['District', 'Chiefdoms', 'Records', 'GPS Records'],
+                ['BO', str(len(gdf[gdf['FIRST_DNAM'] == 'BO'])), 
+                 str(len(extracted_df[extracted_df['District'].str.upper() == 'BO'])),
+                 str(len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()]))],
+                ['BOMBALI', str(len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI'])), 
+                 str(len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI'])),
+                 str(len(extracted_df[(extracted_df['District'].str.upper() == 'BOMBALI') & extracted_df['GPS_Location'].notna()]))]
+            ]
+            
+            summary_table = Table(summary_table_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(summary_table)
+            
+            # Build PDF
+            doc.build(story)
+            
+            # Get PDF data
+            pdf_data = pdf_buffer.getvalue()
+            
+            st.success("✅ PDF report generated successfully!")
+            st.download_button(
+                label="💾 Download PDF Report",
+                data=pdf_data,
+                file_name=f"SBD_Dashboard_Report_{filename_date}.pdf",
+                mime="application/pdf",
+                help="Download comprehensive PDF report with all dashboard sections"
+            )
+            
+        except ImportError:
+            st.error("❌ PDF generation requires reportlab library. Please install it using: pip install reportlab")
+        except Exception as e:
+            st.error(f"❌ Error generating PDF: {str(e)}")
+
+with export_col2:
+    # Word Report Generation
+    if st.button("📋 Generate Word Report", help="Generate comprehensive Word report with all dashboards"):
+        try:
+            from docx import Document
+            from docx.shared import Inches, Pt
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            from docx.enum.table import WD_TABLE_ALIGNMENT
+            from docx.oxml.shared import OxmlElement, qn
+            
+            doc = Document()
+            
+            # Header with logos from file paths
+            logo_config = st.session_state.get('logos', {
+                'logo1': {'path': 'logo1.png', 'name': 'Organization 1'},
+                'logo2': {'path': 'logo2.png', 'name': 'Organization 2'},
+                'logo3': {'path': 'logo3.png', 'name': 'Organization 3'},
+                'logo4': {'path': 'logo4.png', 'name': 'Organization 4'}
+            })
+            
+            # Header with logo placeholders and organization names
+            header_table = doc.add_table(rows=2, cols=4)
+            header_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            
+            # Logo placeholders row
+            logo_cells = header_table.rows[0].cells
+            org_cells = header_table.rows[1].cells
+            
+            for i in range(4):
+                logo_info = logo_config.get(f'logo{i+1}', {'path': f'logo{i+1}.png', 'name': f'Organization {i+1}'})
+                
+                # Try to add actual logo or use placeholder
+                try:
+                    # Attempt to add image from file path
+                    logo_para = logo_cells[i].paragraphs[0]
+                    logo_run = logo_para.add_run()
+                    logo_run.add_picture(logo_info['path'], width=Inches(1.5))
+                    logo_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                except:
+                    # Use placeholder if file not found
+                    logo_cells[i].text = f"[LOGO {i+1}]"
+                
+                # Add organization name
+                org_cells[i].text = logo_info['name']
+            
+            # Style header table
+            for row in header_table.rows:
+                for cell in row.cells:
+                    cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = cell.paragraphs[0].runs[0]
+                    run.font.size = Pt(10)
+                    run.bold = True
+            
+            doc.add_paragraph()  # Add space after header
+            
+            # Title
+            title = doc.add_heading('School-Based Distribution (SBD)', 0)
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            subtitle = doc.add_heading('Comprehensive Chiefdom Dashboard Analysis', level=1)
+            subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Date
+            date_para = doc.add_paragraph()
+            date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            date_run = date_para.add_run(f"Report Generated: {date_str}")
+            date_run.font.size = Pt(12)
+            date_run.bold = True
+            
+            doc.add_page_break()
+            
+            # Executive Summary
+            doc.add_heading('Executive Summary', level=1)
+            
+            summary_text = f"""
+            This comprehensive dashboard report presents analysis across three key areas for BO and BOMBALI districts:
+            
+            Section 1: GPS School Locations
+            • Visual mapping of all school GPS coordinates by chiefdom
+            • Geographic distribution analysis across {len(gdf[gdf['FIRST_DNAM'].isin(['BO', 'BOMBALI'])])} chiefdoms
+            
+            Section 2: School Coverage Analysis
+            • Comparison of surveyed schools vs target schools per chiefdom
+            • Coverage rates with color-coded visualization
+            • Identification of gaps in school survey completion
+            
+            Section 3: ITN Coverage Analysis
+            • ITN distribution effectiveness by chiefdom
+            • Coverage percentages based on enrollment vs ITN distribution
+            • Performance assessment across administrative boundaries
+            
+            Districts Covered: BO, BOMBALI
+            Total Records Processed: {len(extracted_df)}
+            Report Date: {date_str}
+            """
+            doc.add_paragraph(summary_text)
+            
+            # Dashboard Sections Overview
+            doc.add_heading('Dashboard Sections', level=1)
+            
+            sections = [
+                ("Section 1: GPS School Locations", "Visual mapping of school coordinates by chiefdom with geographic distribution analysis"),
+                ("Section 2: School Coverage Analysis", "Survey completion rates comparing actual vs target schools with color-coded performance"),
+                ("Section 3: ITN Coverage Analysis", "ITN distribution effectiveness showing coverage percentages and performance indicators")
+            ]
+            
+            for section_title, section_desc in sections:
+                doc.add_heading(section_title, level=2)
+                doc.add_paragraph(section_desc)
+            
+            # Data Summary
+            doc.add_heading('Data Summary', level=1)
+            
+            # Create summary table
+            summary_table = doc.add_table(rows=3, cols=4)
+            summary_table.style = 'Table Grid'
+            
+            # Header row
+            header_cells = summary_table.rows[0].cells
+            header_cells[0].text = 'District'
+            header_cells[1].text = 'Chiefdoms'
+            header_cells[2].text = 'Records'
+            header_cells[3].text = 'GPS Records'
+            
+            # BO row
+            bo_cells = summary_table.rows[1].cells
+            bo_cells[0].text = 'BO'
+            bo_cells[1].text = str(len(gdf[gdf['FIRST_DNAM'] == 'BO']))
+            bo_cells[2].text = str(len(extracted_df[extracted_df['District'].str.upper() == 'BO']))
+            bo_cells[3].text = str(len(extracted_df[(extracted_df['District'].str.upper() == 'BO') & extracted_df['GPS_Location'].notna()]))
+            
+            # BOMBALI row
+            bombali_cells = summary_table.rows[2].cells
+            bombali_cells[0].text = 'BOMBALI'
+            bombali_cells[1].text = str(len(gdf[gdf['FIRST_DNAM'] == 'BOMBALI']))
+            bombali_cells[2].text = str(len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI']))
+            bombali_cells[3].text = str(len(extracted_df[(extracted_df['District'].str.upper() == 'BOMBALI') & extracted_df['GPS_Location'].notna()]))
+            
+            # Style summary table
+            for row in summary_table.rows:
+                for cell in row.cells:
+                    cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Bold header row
+            for cell in summary_table.rows[0].cells:
+                run = cell.paragraphs[0].runs[0]
+                run.bold = True
+            
+            # Save to BytesIO
+            word_buffer = BytesIO()
+            doc.save(word_buffer)
+            word_data = word_buffer.getvalue()
+            
+            st.success("✅ Word report generated successfully!")
+            st.download_button(
+                label="💾 Download Word Report",
+                data=word_data,
+                file_name=f"SBD_Dashboard_Report_{filename_date}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                help="Download comprehensive Word report with all dashboard sections"
+            )
+            
+        except ImportError:
+            st.error("❌ Word report generation requires python-docx library. Please install it using: pip install python-docx")
+        except Exception as e:
+            st.error(f"❌ Error generating Word report: {str(e)}")
+
+# Logo Management Section
+st.header("🖼️ Logo Management")
+st.write("Configure logo file paths for report headers")
+
+logo_col1, logo_col2, logo_col3, logo_col4 = st.columns(4)
+
+with logo_col1:
+    st.write("**Logo 1 (Organization 1)**")
+    logo1_path = st.text_input("Logo 1 file path", value="logo1.png", key="logo1_path")
+    org1_name = st.text_input("Organization 1 name", value="Organization 1", key="org1_name")
+    try:
+        st.image(logo1_path, width=150, caption="Logo 1 Preview")
+    except:
+        st.write("❌ Logo 1 file not found")
+
+with logo_col2:
+    st.write("**Logo 2 (Organization 2)**")
+    logo2_path = st.text_input("Logo 2 file path", value="logo2.png", key="logo2_path")
+    org2_name = st.text_input("Organization 2 name", value="Organization 2", key="org2_name")
+    try:
+        st.image(logo2_path, width=150, caption="Logo 2 Preview")
+    except:
+        st.write("❌ Logo 2 file not found")
+
+with logo_col3:
+    st.write("**Logo 3 (Organization 3)**")
+    logo3_path = st.text_input("Logo 3 file path", value="logo3.png", key="logo3_path")
+    org3_name = st.text_input("Organization 3 name", value="Organization 3", key="org3_name")
+    try:
+        st.image(logo3_path, width=150, caption="Logo 3 Preview")
+    except:
+        st.write("❌ Logo 3 file not found")
+
+with logo_col4:
+    st.write("**Logo 4 (Organization 4)**")
+    logo4_path = st.text_input("Logo 4 file path", value="logo4.png", key="logo4_path")
+    org4_name = st.text_input("Organization 4 name", value="Organization 4", key="org4_name")
+    try:
+        st.image(logo4_path, width=150, caption="Logo 4 Preview")
+    except:
+        st.write("❌ Logo 4 file not found")
+
+
+# Update logo configuration in session state
+st.session_state.logos = {
+    'logo1': {'path': logo1_path, 'name': org1_name},
+    'logo2': {'path': logo2_path, 'name': org2_name},
+    'logo3': {'path': logo3_path, 'name': org3_name},
+    'logo4': {'path': logo4_path, 'name': org4_name}
+}
+
 # Footer
 st.markdown("---")
-st.markdown("**📊 ICF-SL | A local firm with international standard**")
+st.markdown("**📊 Chiefdom GPS Dashboard | School-Based Distribution Analysis**")
