@@ -284,16 +284,57 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
                     # Validate coordinates for Sierra Leone
                     if lat is not None and lon is not None:
                         if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
-                            coords_extracted.append([lat, lon])
+                            coords_extracted.append([lat, lon, str(gps_val)])  # Include original GPS string for debugging
+        
+        # Handle overlapping coordinates by adding small offsets
+        def separate_overlapping_points(coords, min_distance=0.001):
+            """Separate overlapping GPS points by adding small offsets"""
+            if len(coords) <= 1:
+                return coords
+            
+            separated_coords = []
+            for i, (lat, lon, gps_str) in enumerate(coords):
+                adjusted_lat, adjusted_lon = lat, lon
+                
+                # Check if this point overlaps with any previous point
+                for j, (prev_lat, prev_lon, _) in enumerate(separated_coords):
+                    distance = ((adjusted_lat - prev_lat)**2 + (adjusted_lon - prev_lon)**2)**0.5
+                    if distance < min_distance:
+                        # Add small offset in a circular pattern
+                        angle = (i * 2 * 3.14159) / len(coords)
+                        offset = min_distance * 1.5
+                        adjusted_lat += offset * math.cos(angle)
+                        adjusted_lon += offset * math.sin(angle)
+                
+                separated_coords.append([adjusted_lat, adjusted_lon, gps_str])
+            
+            return separated_coords
+        
+        # Separate overlapping points
+        if coords_extracted:
+            coords_extracted = separate_overlapping_points(coords_extracted)
         
         # Plot GPS points if available
         if coords_extracted:
-            lats, lons = zip(*coords_extracted)
-            ax.scatter(lons, lats, c='red', s=100, alpha=1.0, 
-                      edgecolors='white', linewidth=2, zorder=100, marker='o')
+            lats, lons, gps_strings = zip(*coords_extracted)
+            
+            # Plot each point individually to ensure they're all visible
+            for i, (lat, lon) in enumerate(zip(lats, lons)):
+                ax.scatter(lon, lat, c='red', s=100, alpha=1.0, 
+                          edgecolors='white', linewidth=2, zorder=100, marker='o')
+            
+            # Add debug info in title if multiple points exist
+            if len(coords_extracted) > 1:
+                unique_coords = len(set([(round(lat, 6), round(lon, 6)) for lat, lon, _ in coords_extracted]))
+                if unique_coords < len(coords_extracted):
+                    debug_info = f" [Debug: {len(coords_extracted)} total, {unique_coords} unique locations]"
+                else:
+                    debug_info = ""
+            else:
+                debug_info = ""
         
         # Set title and clean up axes
-        ax.set_title(f'{chiefdom}\n({len(coords_extracted)} schools)', 
+        ax.set_title(f'{chiefdom}\n({len(coords_extracted)} schools{debug_info if coords_extracted else ""})', 
                     fontsize=12, fontweight='bold', pad=10)
         
         # Remove axis labels and ticks for cleaner look
