@@ -40,7 +40,71 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def parse_gps_coordinates(gps_str):
+def create_chiefdom_mapping():
+    """Create mapping between GPS data chiefdom names and shapefile FIRST_CHIE names"""
+    chiefdom_mapping = {
+        # BO District mappings
+        "Bo City": "BO TOWN",
+        "Badjia": "BADJIA",
+        "Bargbo": "BAGBO",
+        "Bagbwe": "BAGBWE(BAGBE)",
+        "Baoma": "BOAMA",
+        "Bongor": "BONGOR",
+        "Bumpe Ngao": "BUMPE NGAO",
+        "Gbo": "GBO",
+        "Jaiama": "JAIAMA",
+        "Kakua": "KAKUA",
+        "Komboya": "KOMBOYA",
+        "Lugbu": "LUGBU",
+        "Niawa Lenga": "NIAWA LENGA",
+        "Selenga": "SELENGA",
+        "Tikonko": "TIKONKO",
+        "Valunia": "VALUNIA",
+        "Wonde": "WONDE",
+        
+        # BOMBALI District mappings
+        "Biriwa": "BIRIWA",
+        "Bombali Sebora": "BOMBALI SEBORA",
+        "Bombali Serry": "BOMBALI SIARI",
+        "Gbanti (Bombali)": "GBANTI",
+        "Gbanti": "GBANTI",
+        "Gbendembu": "GBENDEMBU",
+        "Kamaranka": "KAMARANKA",
+        "Magbaimba Ndohahun": "MAGBAIMBA NDORWAHUN",
+        "Makarie": "MAKARI",
+        "Mara": "MARA",
+        "Ngowahun": "N'GOWAHUN",
+        "Paki Masabong": "PAKI MASABONG",
+        "Safroko Limba": "SAFROKO LIMBA",
+        "Makeni City": "MAKENI CITY",
+        
+        # Add more mappings as needed
+    }
+    return chiefdom_mapping
+
+def map_chiefdom_name(chiefdom_name, mapping):
+    """Map chiefdom name from GPS data to shapefile name"""
+    if pd.isna(chiefdom_name):
+        return None
+    
+    chiefdom_name = str(chiefdom_name).strip()
+    
+    # Direct match
+    if chiefdom_name in mapping:
+        return mapping[chiefdom_name]
+    
+    # Case-insensitive match
+    for key, value in mapping.items():
+        if key.upper() == chiefdom_name.upper():
+            return value
+    
+    # Partial match (contains)
+    for key, value in mapping.items():
+        if key.upper() in chiefdom_name.upper() or chiefdom_name.upper() in key.upper():
+            return value
+    
+    # Return original if no mapping found
+    return chiefdom_name
     """Enhanced GPS coordinate parsing that handles multiple formats"""
     if pd.isna(gps_str):
         return None, None
@@ -86,6 +150,9 @@ def extract_gps_data_from_excel(df):
     # Create empty lists to store extracted data
     districts, chiefdoms, gps_locations = [], [], []
     
+    # Get chiefdom mapping
+    chiefdom_mapping = create_chiefdom_mapping()
+    
     # Process each row in the "Scan QR code" column
     for idx, qr_text in enumerate(df["Scan QR code"]):
         if pd.isna(qr_text):
@@ -100,8 +167,11 @@ def extract_gps_data_from_excel(df):
         districts.append(district)
         
         chiefdom_match = re.search(r"Chiefdom:\s*([^\n]+)", str(qr_text))
-        chiefdom = chiefdom_match.group(1).strip() if chiefdom_match else None
-        chiefdoms.append(chiefdom)
+        original_chiefdom = chiefdom_match.group(1).strip() if chiefdom_match else None
+        
+        # Map chiefdom name to match shapefile
+        mapped_chiefdom = map_chiefdom_name(original_chiefdom, chiefdom_mapping)
+        chiefdoms.append(mapped_chiefdom)
         
         # Get GPS Location from the corresponding row
         if "GPS Location" in df.columns:
@@ -157,9 +227,9 @@ def create_chiefdom_subplot_dashboard(gdf, extracted_df, district_name, cols=4):
         # Plot chiefdom boundary
         chiefdom_gdf.plot(ax=ax, color='lightblue', edgecolor='navy', alpha=0.7, linewidth=2)
         
-        # Filter GPS data for this district and chiefdom
+        # Filter GPS data for this district and chiefdom with exact matching
         district_data = extracted_df[extracted_df["District"].str.upper() == district_name.upper()].copy()
-        chiefdom_data = district_data[district_data["Chiefdom"].str.contains(chiefdom, case=False, na=False)].copy()
+        chiefdom_data = district_data[district_data["Chiefdom"] == chiefdom].copy()
         
         # Extract and plot GPS coordinates for this chiefdom
         coords_extracted = []
@@ -235,11 +305,9 @@ st.markdown("**Comprehensive view of all chiefdoms with GPS school locations**")
 # Load the data
 try:
     df_original = pd.read_excel("sbd first_submission_clean.xlsx")
-    st.success("✅ Data file loaded successfully!")
     
-    # Extract GPS data
+    # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
-    st.info(f"📊 Extracted {len(extracted_df)} records")
     
 except Exception as e:
     st.error(f"❌ Error loading Excel file: {e}")
@@ -248,8 +316,6 @@ except Exception as e:
 # Load shapefile
 try:
     gdf = gpd.read_file("Chiefdom2021.shp")
-    st.success("✅ Shapefile loaded successfully!")
-    st.info(f"🗺️ Shapefile contains {len(gdf)} chiefdoms")
     
 except Exception as e:
     st.error(f"❌ Could not load shapefile: {e}")
@@ -257,7 +323,7 @@ except Exception as e:
 
 # Dashboard Settings
 columns = 4
-show_data_info = True
+show_data_info = False
 
 if show_data_info:
     # Display data information
@@ -313,7 +379,6 @@ st.divider()
 
 # BOMBALI District Dashboard
 st.subheader("1b. BOMBALI District - All Chiefdoms")
-st.write("**Individual maps for each chiefdom in BOMBALI District with GPS school locations**")
 
 with st.spinner("Generating BOMBALI District dashboard..."):
     try:
