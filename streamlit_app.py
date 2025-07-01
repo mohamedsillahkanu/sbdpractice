@@ -789,6 +789,12 @@ def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
         census_total = int(chiefdom_data["Census_2024"].sum()) if len(chiefdom_data) > 0 else 0
         current_total = int(chiefdom_data["Current_Enrollment"].sum()) if len(chiefdom_data) > 0 else 0
         
+        # Calculate percentage change (Census as baseline)
+        if census_total > 0:
+            percent_change = ((current_total - census_total) / census_total) * 100
+        else:
+            percent_change = 0 if current_total == 0 else 100  # If no census data but current data exists
+        
         # Plot chiefdom boundary (light gray)
         chiefdom_gdf.plot(ax=ax, color='lightgray', edgecolor='black', alpha=0.7, linewidth=2)
         
@@ -799,24 +805,26 @@ def create_enrollment_dashboard(gdf, enrollment_df, district_name, cols=4):
         ax.set_title(f'{chiefdom}\n{enrollment_text}', 
                     fontsize=11, fontweight='bold', pad=10)
         
-        # Add colored text boxes in the center of the chiefdom
+        # Add percentage change in the center of the chiefdom
         if len(chiefdom_gdf) > 0:
             # Get center of chiefdom
             bounds = chiefdom_gdf.total_bounds
             center_x = (bounds[0] + bounds[2]) / 2
             center_y = (bounds[1] + bounds[3]) / 2
             
-            # Add green text for census data
-            ax.text(center_x, center_y + 0.003, f'{census_total}', 
-                   fontsize=14, fontweight='bold', color='green', 
-                   ha='center', va='center',
-                   bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.9, edgecolor='green'))
+            # Format percentage change
+            if percent_change >= 0:
+                change_text = f"+{percent_change:.1f}%"
+                change_color = 'green'
+            else:
+                change_text = f"{percent_change:.1f}%"
+                change_color = 'red'
             
-            # Add orange text for current data
-            ax.text(center_x, center_y - 0.003, f'{current_total}', 
-                   fontsize=14, fontweight='bold', color='orange', 
+            # Add percentage change text in the center
+            ax.text(center_x, center_y, change_text, 
+                   fontsize=16, fontweight='bold', color=change_color, 
                    ha='center', va='center',
-                   bbox=dict(boxstyle='round,pad=0.4', facecolor='white', alpha=0.9, edgecolor='orange'))
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.9, edgecolor=change_color))
         
         # Remove axis labels and ticks for cleaner look
         ax.set_xticks([])
