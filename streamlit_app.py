@@ -518,3 +518,4 @@ if st.checkbox("Show raw data preview"):
 # Footer
 st.markdown("---")
 st.markdown("**📊 Chiefdom GPS Dashboard | School-Based Distribution Analysis**")
+st.markdown("**ICF-SL | A local firm with international standards")
