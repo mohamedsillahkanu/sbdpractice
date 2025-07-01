@@ -6,16 +6,6 @@ import matplotlib.pyplot as plt
 import geopandas as gpd
 from io import BytesIO
 import base64
-import warnings
-warnings.filterwarnings('ignore')
-
-# Set page config
-st.set_page_config(
-    page_title="SBD Analysis Dashboard",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Custom CSS with blue and white theme and zoom functionality
 st.markdown("""
@@ -62,6 +52,12 @@ st.markdown("""
         padding-bottom: 0.5rem !important;
     }
     
+    /* Sidebar styling */
+    .css-1d391kg {
+        padding-left: 1rem !important;
+        margin-left: 0 !important;
+    }
+    
     /* Button styling */
     .stButton > button {
         background: linear-gradient(45deg, #3498db, #2980b9) !important;
@@ -72,6 +68,12 @@ st.markdown("""
         font-weight: 600 !important;
         box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3) !important;
         transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(45deg, #2980b9, #1f5f8b) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4) !important;
     }
     
     /* Download button styling */
@@ -86,6 +88,12 @@ st.markdown("""
         transition: all 0.3s ease !important;
     }
     
+    .stDownloadButton > button:hover {
+        background: linear-gradient(45deg, #229954, #1e7e34) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4) !important;
+    }
+    
     /* Metric styling */
     [data-testid="metric-container"] {
         background: linear-gradient(135deg, #74b9ff, #0984e3) !important;
@@ -98,45 +106,381 @@ st.markdown("""
     [data-testid="metric-container"] > div {
         color: white !important;
     }
+    
+    /* Dataframe styling */
+    .stDataFrame {
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    
+    /* Info box styling */
+    .stInfo {
+        background: linear-gradient(135deg, #74b9ff, #0984e3) !important;
+        color: white !important;
+        border-radius: 10px !important;
+    }
+    
+    /* Warning box styling */
+    .stWarning {
+        background: linear-gradient(135deg, #fdcb6e, #e17055) !important;
+        color: white !important;
+        border-radius: 10px !important;
+    }
+    
+    /* Success box styling */
+    .stSuccess {
+        background: linear-gradient(135deg, #00b894, #00a085) !important;
+        color: white !important;
+        border-radius: 10px !important;
+    }
+    
+    /* Report export button styling */
+    .report-button {
+        background: linear-gradient(45deg, #e74c3c, #c0392b) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 25px !important;
+        padding: 0.75rem 2rem !important;
+        font-weight: 700 !important;
+        font-size: 16px !important;
+        box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3) !important;
+        transition: all 0.3s ease !important;
+        cursor: pointer !important;
+        width: 100% !important;
+        margin: 1rem 0 !important;
+    }
+    
+    .report-button:hover {
+        background: linear-gradient(45deg, #c0392b, #a93226) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Function to save maps as PNG and return BytesIO object
 def save_map_as_png(fig, filename_prefix):
     """Save matplotlib figure as PNG and return BytesIO object"""
-    try:
-        buffer = BytesIO()
-        fig.savefig(buffer, format='png', dpi=300, bbox_inches='tight', 
-                   facecolor='white', edgecolor='none', pad_inches=0.2)
-        buffer.seek(0)
-        return buffer
-    except Exception as e:
-        st.error(f"Error saving map {filename_prefix}: {str(e)}")
-        return None
-
-# Function to parse GPS coordinates
-def parse_gps_coordinates(gps_string):
-    """Parse GPS coordinates from string format"""
-    if pd.isna(gps_string):
-        return None, None
+    buffer = BytesIO()
+    fig.savefig(buffer, format='png', dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
+    buffer.seek(0)
     
-    try:
-        gps_str = str(gps_string).strip()
-        
-        # Handle comma-separated format: lat,lon
-        if ',' in gps_str:
-            parts = gps_str.split(',')
-            if len(parts) == 2:
-                lat = float(parts[0].strip())
-                lon = float(parts[1].strip())
-                
-                # Validate coordinates for Sierra Leone
+    # Also save to disk for reference
+    fig.savefig(f"{filename_prefix}.png", format='png', dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
+    
+    return buffer
+
+# Enhanced GPS coordinate extraction and plotting function
+def extract_and_plot_gps_coordinates(data_df, ax, district_filter=None, color='red', marker_size=150, show_labels=True):
+    """
+    Enhanced function to extract and plot GPS coordinates with better error handling
+    
+    Parameters:
+    - data_df: DataFrame containing GPS data
+    - ax: Matplotlib axes object to plot on
+    - district_filter: Optional district name to filter data
+    - color: Color for GPS markers
+    - marker_size: Size of GPS markers
+    - show_labels: Whether to show school labels
+    
+    Returns:
+    - coords_extracted: List of [lat, lon] coordinates
+    - plotted_count: Number of successfully plotted points
+    """
+    coords_extracted = []
+    
+    # Filter data if district specified
+    if district_filter:
+        filtered_data = data_df[data_df["District"] == district_filter].copy()
+    else:
+        filtered_data = data_df.copy()
+    
+    # Check if GPS Location column exists
+    if "GPS Location" not in filtered_data.columns:
+        st.warning(f"GPS Location column not found in data")
+        return coords_extracted, 0
+    
+    gps_data = filtered_data["GPS Location"].dropna()
+    
+    st.write(f"**Debug GPS Processing:** Found {len(gps_data)} GPS entries for {district_filter if district_filter else 'all data'}")
+    
+    # Process each GPS entry
+    for idx, gps_val in enumerate(gps_data):
+        if pd.notna(gps_val):
+            gps_str = str(gps_val).strip()
+            
+            # Handle multiple GPS coordinate formats
+            lat, lon = None, None
+            
+            # Format 1: "8.6103181,-12.2029534" (comma-separated)
+            if ',' in gps_str:
+                try:
+                    parts = gps_str.split(',')
+                    if len(parts) == 2:
+                        lat = float(parts[0].strip())
+                        lon = float(parts[1].strip())
+                except ValueError:
+                    continue
+            
+            # Format 2: "8.6103181 -12.2029534" (space-separated)
+            elif ' ' in gps_str and len(gps_str.split()) == 2:
+                try:
+                    parts = gps_str.split()
+                    lat = float(parts[0].strip())
+                    lon = float(parts[1].strip())
+                except ValueError:
+                    continue
+            
+            # Format 3: Single coordinate string (try to parse)
+            else:
+                # Skip if cannot parse
+                continue
+            
+            # Validate coordinates are within Sierra Leone bounds
+            if lat is not None and lon is not None:
                 if 6.0 <= lat <= 11.0 and -14.0 <= lon <= -10.0:
-                    return lat, lon
+                    coords_extracted.append([lat, lon])
+                    st.write(f"✅ Valid coordinates {idx+1}: {lat:.6f}, {lon:.6f}")
+                else:
+                    st.write(f"❌ Invalid coordinates (outside Sierra Leone): {lat:.6f}, {lon:.6f}")
+    
+    st.write(f"**Total valid coordinates extracted: {len(coords_extracted)}**")
+    
+    # Plot GPS points if any found
+    plotted_count = 0
+    if coords_extracted:
+        lats, lons = zip(*coords_extracted)
         
-        return None, None
-    except (ValueError, TypeError):
-        return None, None
+        # Plot GPS points with high visibility
+        scatter = ax.scatter(
+            lons, lats,
+            c=color,
+            s=marker_size,
+            alpha=0.9,
+            edgecolors='white',
+            linewidth=2,
+            zorder=100,  # Ensure points are on top
+            label=f'Schools ({len(coords_extracted)})',
+            marker='o'
+        )
+        
+        # Add text labels for each point if requested
+        if show_labels:
+            for i, (lat, lon) in enumerate(coords_extracted):
+                ax.annotate(f'S{i+1}', 
+                           (lon, lat),
+                           xytext=(5, 5), 
+                           textcoords='offset points',
+                           fontsize=9,
+                           fontweight='bold',
+                           color=color,
+                           bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
+        
+        plotted_count = len(coords_extracted)
+        
+        # Add legend
+        ax.legend(fontsize=12, loc='best')
+        
+        # Show coordinate range for verification
+        st.write(f"**Coordinate range:** Lat: {min(lats):.4f} to {max(lats):.4f}, Lon: {min(lons):.4f} to {max(lons):.4f}")
+        
+        # Auto-adjust map extent to include all points with padding
+        margin = 0.05
+        ax.set_xlim(min(lons) - margin, max(lons) + margin)
+        ax.set_ylim(min(lats) - margin, max(lats) + margin)
+    
+    return coords_extracted, plotted_count
+
+# Function to create overall Sierra Leone map with ALL GPS points
+def create_overall_sierra_leone_map_with_all_gps(extracted_df, gdf, map_images):
+    """
+    Create overall Sierra Leone map with ALL GPS coordinates
+    """
+    st.write("### Sierra Leone - Complete GPS Overview")
+    
+    # Create overall Sierra Leone map
+    fig_overall, ax_overall = plt.subplots(figsize=(16, 12))
+    
+    # Plot all chiefdoms with gray edges (base layer)
+    gdf.plot(ax=ax_overall, color='white', edgecolor='gray', alpha=0.8, linewidth=0.5)
+    
+    # Plot district boundaries with thick black lines
+    if 'FIRST_DNAM' in gdf.columns:
+        district_boundaries = gdf.dissolve(by='FIRST_DNAM')
+        district_boundaries.plot(ax=ax_overall, facecolor='none', edgecolor='black', linewidth=3, alpha=1.0)
+        
+        # Add district labels at centroids
+        for idx, row in district_boundaries.iterrows():
+            centroid = row.geometry.centroid
+            ax_overall.annotate(
+                idx,  # District name
+                (centroid.x, centroid.y),
+                fontsize=11,
+                fontweight='bold',
+                ha='center',
+                va='center',
+                color='black',
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8, edgecolor='black')
+            )
+    
+    # Extract and plot ALL GPS coordinates using enhanced function
+    coords_extracted, plotted_count = extract_and_plot_gps_coordinates(
+        extracted_df, ax_overall, district_filter=None, 
+        color='#47B5FF', marker_size=80, show_labels=False  # No labels for overview map
+    )
+    
+    # Customize overall map
+    title_text = 'Sierra Leone - Complete School Distribution Overview'
+    if plotted_count > 0:
+        title_text += f' | {plotted_count} Schools with GPS'
+    ax_overall.set_title(title_text, fontsize=18, fontweight='bold', pad=20)
+    ax_overall.set_xlabel('Longitude', fontsize=14)
+    ax_overall.set_ylabel('Latitude', fontsize=14)
+    
+    # Add grid for reference
+    ax_overall.grid(True, alpha=0.3, linestyle='--')
+    
+    # If no GPS coordinates, set default bounds
+    if plotted_count == 0:
+        ax_overall.set_xlim(gdf.total_bounds[0] - 0.1, gdf.total_bounds[2] + 0.1)
+        ax_overall.set_ylim(gdf.total_bounds[1] - 0.1, gdf.total_bounds[3] + 0.1)
+    
+    plt.tight_layout()
+    st.pyplot(fig_overall)
+    
+    # Save overall map
+    map_images['sierra_leone_complete_gps'] = save_map_as_png(fig_overall, "Sierra_Leone_Complete_GPS_Map")
+    
+    if plotted_count > 0:
+        st.success(f"✅ Overall map created with {plotted_count} school GPS locations across Sierra Leone")
+    else:
+        st.warning("⚠️ No GPS coordinates found for overall map")
+    
+    return map_images
+
+# Function to create enhanced district maps with GPS for ALL districts
+def create_enhanced_district_maps_with_gps(extracted_df, gdf, map_images):
+    """
+    Create enhanced district maps with GPS coordinates for ALL districts
+    """
+    st.write("### Enhanced District Maps with Complete GPS Coverage")
+    
+    # Get all unique districts from the data
+    all_districts = sorted(extracted_df['District'].dropna().unique())
+    
+    st.write(f"**Creating maps for {len(all_districts)} districts with GPS coordinates**")
+    
+    for district_name in all_districts:
+        st.write(f"**{district_name} District - Complete GPS Mapping**")
+        
+        # Filter shapefile for this district
+        district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
+        
+        if len(district_gdf) > 0:
+            # Create the district plot
+            fig_district, ax_district = plt.subplots(figsize=(14, 10))
+            
+            # Plot chiefdom boundaries in white with black edges
+            district_gdf.plot(ax=ax_district, color='white', edgecolor='black', alpha=0.8, linewidth=2)
+            
+            # Extract and plot GPS coordinates using the enhanced function
+            coords_extracted, plotted_count = extract_and_plot_gps_coordinates(
+                extracted_df, ax_district, district_filter=district_name, 
+                color='#FF4444', marker_size=120, show_labels=True
+            )
+            
+            # If no GPS coordinates found, show the district boundaries with default extent
+            if plotted_count == 0:
+                bounds = district_gdf.total_bounds
+                ax_district.set_xlim(bounds[0] - 0.01, bounds[2] + 0.01)
+                ax_district.set_ylim(bounds[1] - 0.01, bounds[3] + 0.01)
+                st.warning(f"No GPS coordinates found for {district_name} district")
+            
+            # Add chiefdom labels
+            for idx, row in district_gdf.iterrows():
+                if 'FIRST_CHIE' in row and pd.notna(row['FIRST_CHIE']):
+                    centroid = row.geometry.centroid
+                    ax_district.annotate(
+                        row['FIRST_CHIE'], 
+                        (centroid.x, centroid.y),
+                        fontsize=10,
+                        ha='center',
+                        va='center',
+                        bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', alpha=0.7, edgecolor='blue')
+                    )
+            
+            # Customize plot
+            title_text = f'{district_name} District - Enhanced GPS Mapping'
+            if plotted_count > 0:
+                title_text += f' | {plotted_count} Schools Located'
+            ax_district.set_title(title_text, fontsize=16, fontweight='bold', pad=20)
+            ax_district.set_xlabel('Longitude', fontsize=12)
+            ax_district.set_ylabel('Latitude', fontsize=12)
+            
+            # Add grid for reference
+            ax_district.grid(True, alpha=0.3, linestyle='--')
+            
+            # Improve plot appearance
+            ax_district.tick_params(axis='both', which='major', labelsize=10)
+            
+            plt.tight_layout()
+            st.pyplot(fig_district)
+            
+            # Save district map with GPS
+            map_images[f'{district_name}_enhanced_gps'] = save_map_as_png(fig_district, f"{district_name}_Enhanced_GPS_Map")
+            
+            # Display chiefdoms list
+            if 'FIRST_CHIE' in district_gdf.columns:
+                chiefdoms = district_gdf['FIRST_CHIE'].dropna().tolist()
+                st.write(f"**Chiefdoms in {district_name} District ({len(chiefdoms)}):**")
+                chiefdom_cols = st.columns(min(4, len(chiefdoms)))
+                for i, chiefdom in enumerate(chiefdoms):
+                    with chiefdom_cols[i % len(chiefdom_cols)]:
+                        st.write(f"• {chiefdom}")
+            
+            # Show GPS statistics
+            if plotted_count > 0:
+                st.success(f"✅ Successfully plotted {plotted_count} school GPS locations for {district_name}")
+            else:
+                st.info(f"ℹ️ No GPS coordinates available for {district_name}")
+            
+            st.divider()
+        else:
+            st.warning(f"No shapefile data found for {district_name} district")
+    
+    return map_images
+
+# Function to debug GPS data quality
+def debug_gps_data(extracted_df):
+    """
+    Debug function to analyze GPS data quality
+    """
+    st.write("### GPS Data Quality Analysis")
+    
+    if "GPS Location" in extracted_df.columns:
+        gps_data = extracted_df["GPS Location"].dropna()
+        
+        st.write(f"**Total GPS entries:** {len(gps_data)}")
+        st.write(f"**Non-null GPS entries:** {len(gps_data)}")
+        
+        # Show sample GPS entries
+        st.write("**Sample GPS entries:**")
+        for i, gps_val in enumerate(gps_data.head(10)):
+            st.write(f"{i+1}. {gps_val}")
+        
+        # Analyze GPS formats
+        comma_format = sum(1 for gps in gps_data if ',' in str(gps))
+        space_format = sum(1 for gps in gps_data if ' ' in str(gps) and ',' not in str(gps))
+        other_format = len(gps_data) - comma_format - space_format
+        
+        st.write(f"**GPS Format Analysis:**")
+        st.write(f"- Comma-separated format: {comma_format}")
+        st.write(f"- Space-separated format: {space_format}")
+        st.write(f"- Other/Unknown format: {other_format}")
+        
+    else:
+        st.error("GPS Location column not found in data")
 
 # Function to generate comprehensive summaries
 def generate_summaries(df):
@@ -156,12 +500,12 @@ def generate_summaries(df):
     
     # Calculate totals using the correct columns
     for class_num in range(1, 6):
-        # Total enrollment
+        # Total enrollment from "Number of enrollments in class X"
         enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
         if enrollment_col in df.columns:
             overall_summary['total_enrollment'] += int(df[enrollment_col].fillna(0).sum())
         
-        # Boys and girls for ITN calculation
+        # Boys and girls for gender analysis AND ITN calculation
         boys_col = f"How many boys in Class {class_num} received ITNs?"
         girls_col = f"How many girls in Class {class_num} received ITNs?"
         if boys_col in df.columns:
@@ -169,7 +513,7 @@ def generate_summaries(df):
         if girls_col in df.columns:
             overall_summary['total_girls'] += int(df[girls_col].fillna(0).sum())
     
-    # Total ITNs = boys + girls
+    # Total ITNs = boys + girls (actual beneficiaries)
     overall_summary['total_itn'] = overall_summary['total_boys'] + overall_summary['total_girls']
     
     # Calculate coverage
@@ -193,10 +537,12 @@ def generate_summaries(df):
         }
         
         for class_num in range(1, 6):
+            # Total enrollment from "Number of enrollments in class X"
             enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
             if enrollment_col in district_data.columns:
                 district_stats['enrollment'] += int(district_data[enrollment_col].fillna(0).sum())
             
+            # Boys and girls for gender analysis AND ITN calculation
             boys_col = f"How many boys in Class {class_num} received ITNs?"
             girls_col = f"How many girls in Class {class_num} received ITNs?"
             if boys_col in district_data.columns:
@@ -204,7 +550,10 @@ def generate_summaries(df):
             if girls_col in district_data.columns:
                 district_stats['girls'] += int(district_data[girls_col].fillna(0).sum())
         
+        # Total ITNs = boys + girls (actual beneficiaries)
         district_stats['itn'] = district_stats['boys'] + district_stats['girls']
+        
+        # Calculate coverage
         district_stats['coverage'] = (district_stats['itn'] / district_stats['enrollment'] * 100) if district_stats['enrollment'] > 0 else 0
         district_stats['itn_remaining'] = district_stats['enrollment'] - district_stats['itn']
         
@@ -229,10 +578,12 @@ def generate_summaries(df):
             }
             
             for class_num in range(1, 6):
+                # Total enrollment from "Number of enrollments in class X"
                 enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
                 if enrollment_col in chiefdom_data.columns:
                     chiefdom_stats['enrollment'] += int(chiefdom_data[enrollment_col].fillna(0).sum())
                 
+                # Boys and girls for gender analysis AND ITN calculation
                 boys_col = f"How many boys in Class {class_num} received ITNs?"
                 girls_col = f"How many girls in Class {class_num} received ITNs?"
                 if boys_col in chiefdom_data.columns:
@@ -240,7 +591,10 @@ def generate_summaries(df):
                 if girls_col in chiefdom_data.columns:
                     chiefdom_stats['girls'] += int(chiefdom_data[girls_col].fillna(0).sum())
             
+            # Total ITNs = boys + girls (actual beneficiaries)
             chiefdom_stats['itn'] = chiefdom_stats['boys'] + chiefdom_stats['girls']
+            
+            # Calculate coverage
             chiefdom_stats['coverage'] = (chiefdom_stats['itn'] / chiefdom_stats['enrollment'] * 100) if chiefdom_stats['enrollment'] > 0 else 0
             chiefdom_stats['itn_remaining'] = chiefdom_stats['enrollment'] - chiefdom_stats['itn']
             
@@ -250,218 +604,204 @@ def generate_summaries(df):
     
     return summaries
 
-# Function to create beautiful maps
-def create_district_map(gdf, district_name, gps_data, title_suffix=""):
-    """Create a beautiful district map with GPS points"""
-    try:
-        # Filter shapefile for this district
-        district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
-        
-        if len(district_gdf) == 0:
-            st.warning(f"No shapefile data found for {district_name} district")
-            return None
-        
-        # Create figure with high quality
-        fig, ax = plt.subplots(figsize=(16, 12))
-        
-        # Plot chiefdom boundaries
-        district_gdf.plot(ax=ax, color='lightblue', edgecolor='navy', alpha=0.7, linewidth=2)
-        
-        # Extract GPS coordinates
-        coords = []
-        if gps_data is not None and "GPS Location" in gps_data.columns:
-            for _, row in gps_data.iterrows():
-                lat, lon = parse_gps_coordinates(row["GPS Location"])
-                if lat is not None and lon is not None:
-                    coords.append([lat, lon])
-        
-        # Plot GPS points
-        if coords:
-            lats, lons = zip(*coords)
-            
-            # Create beautiful scatter plot
-            scatter = ax.scatter(
-                lons, lats,
-                c='red',
-                s=200,
-                alpha=0.9,
-                edgecolors='white',
-                linewidth=3,
-                zorder=100,
-                label=f'Schools ({len(coords)})',
-                marker='o'
-            )
-            
-            # Add numbered labels for each point
-            for i, (lat, lon) in enumerate(coords):
-                ax.annotate(f'{i+1}', 
-                           (lon, lat),
-                           xytext=(0, 0), 
-                           textcoords='offset points',
-                           fontsize=12,
-                           fontweight='bold',
-                           color='white',
-                           ha='center',
-                           va='center',
-                           bbox=dict(boxstyle='circle,pad=0.1', facecolor='red', alpha=0.8))
-            
-            # Set map extent to show all points with padding
-            margin = 0.02
-            ax.set_xlim(min(lons) - margin, max(lons) + margin)
-            ax.set_ylim(min(lats) - margin, max(lats) + margin)
-            
-        else:
-            # If no GPS coordinates, show the district boundaries
-            bounds = district_gdf.total_bounds
-            margin = 0.01
-            ax.set_xlim(bounds[0] - margin, bounds[2] + margin)
-            ax.set_ylim(bounds[1] - margin, bounds[3] + margin)
-        
-        # Add chiefdom labels
-        for idx, row in district_gdf.iterrows():
-            if 'FIRST_CHIE' in row and pd.notna(row['FIRST_CHIE']):
-                centroid = row.geometry.centroid
-                ax.annotate(
-                    row['FIRST_CHIE'], 
-                    (centroid.x, centroid.y),
-                    fontsize=11,
-                    ha='center',
-                    va='center',
-                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='navy'),
-                    fontweight='bold'
-                )
-        
-        # Customize plot
-        title = f'{district_name} District - Geographic Distribution{title_suffix}'
-        if coords:
-            title += f' | {len(coords)} GPS Points | {len(district_gdf)} Chiefdoms'
-        
-        ax.set_title(title, fontsize=18, fontweight='bold', pad=20)
-        ax.set_xlabel('Longitude', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Latitude', fontsize=14, fontweight='bold')
-        
-        # Add legend
-        if coords:
-            ax.legend(fontsize=14, loc='best')
-        
-        # Add grid
-        ax.grid(True, alpha=0.3, linestyle='--')
-        
-        # Improve layout
-        plt.tight_layout()
-        
-        return fig
-        
-    except Exception as e:
-        st.error(f"Error creating map for {district_name}: {str(e)}")
-        return None
-
-# Logo Section
-st.markdown("### Partner Organizations")
+# Logo Section - Clean 4 Logo Layout
 col1, col2, col3, col4 = st.columns(4)
 
-logo_names = ["NMCP", "ICF Sierra Leone", "PMI Evolve", "Abt Associates"]
-logo_files = ["NMCP.png", "icf_sl.png", "pmi.png", "abt.png"]
-
-for i, (col, name, file) in enumerate(zip([col1, col2, col3, col4], logo_names, logo_files)):
-    with col:
-        try:
-            st.image(file, width=230)
-            st.markdown(f'<p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">{name}</p>', unsafe_allow_html=True)
-        except:
-            st.markdown(f"""
-            <div style="width: 230px; height: 160px; border: 2px dashed #3498db; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fd, #e3f2fd); border-radius: 10px; margin: 0 auto;">
-                <div style="text-align: center; color: #666; font-size: 11px;">
-                    {file}<br>Not Found
-                </div>
+with col1:
+    try:
+        st.image("NMCP.png", width=230)
+        st.markdown('<p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">National Malaria Control Program</p>', unsafe_allow_html=True)
+    except:
+        st.markdown("""
+        <div style="width: 230px; height: 160px; border: 2px dashed #3498db; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fd, #e3f2fd); border-radius: 10px; margin: 0 auto;">
+            <div style="text-align: center; color: #666; font-size: 11px;">
+                NMCP.png<br>Not Found
             </div>
-            <p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">{name}</p>
-            """, unsafe_allow_html=True)
+        </div>
+        <p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">National Malaria Control Program</p>
+        """, unsafe_allow_html=True)
 
-st.markdown("---")
+with col2:
+    try:
+        st.image("icf_sl.png", width=230)
+        st.markdown('<p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">ICF Sierra Leone</p>', unsafe_allow_html=True)
+    except:
+        st.markdown("""
+        <div style="width: 230px; height: 160px; border: 2px dashed #3498db; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fd, #e3f2fd); border-radius: 10px; margin: 0 auto;">
+            <div style="text-align: center; color: #666; font-size: 11px;">
+                icf_sl.png<br>Not Found
+            </div>
+        </div>
+        <p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">ICF Sierra Leone</p>
+        """, unsafe_allow_html=True)
 
-# Main Title
-st.title("📊 School Based Distribution of ITNs in Sierra Leone")
+with col3:
+    try:
+        st.image("pmi.png", width=230)
+        st.markdown('<p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">PMI Evolve</p>', unsafe_allow_html=True)
+    except:
+        st.markdown("""
+        <div style="width: 230px; height: 160px; border: 2px dashed #3498db; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fd, #e3f2fd); border-radius: 10px; margin: 0 auto;">
+            <div style="text-align: center; color: #666; font-size: 11px;">
+                pmi.png<br>Not Found
+            </div>
+        </div>
+        <p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">PMI Evolve</p>
+        """, unsafe_allow_html=True)
 
-# Initialize session state for storing maps
-if 'map_images' not in st.session_state:
-    st.session_state.map_images = {}
+with col4:
+    try:
+        st.image("abt.png", width=230)
+        st.markdown('<p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">Abt Associates</p>', unsafe_allow_html=True)
+    except:
+        st.markdown("""
+        <div style="width: 230px; height: 160px; border: 2px dashed #3498db; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fd, #e3f2fd); border-radius: 10px; margin: 0 auto;">
+            <div style="text-align: center; color: #666; font-size: 11px;">
+                abt.png<br>Not Found
+            </div>
+        </div>
+        <p style="text-align: center; font-size: 12px; font-weight: 600; color: #2c3e50; margin-top: 5px;">Abt Associates</p>
+        """, unsafe_allow_html=True)
 
-# File upload section
-uploaded_file = st.file_uploader("Upload Excel File", type=['xlsx', 'xls'])
+st.markdown("---")  # Add a horizontal line separator
 
-# Use default file if no upload
-if uploaded_file is None:
-    uploaded_file = "sbd first_submission_clean.xlsx"
-    st.info("Using default file: sbd first_submission_clean.xlsx")
+# Streamlit App
+st.title("📊 School Based Distribution of ITNs in SL")
 
-try:
-    # Read the Excel file
-    if isinstance(uploaded_file, str):
-        df_original = pd.read_excel(uploaded_file)
-    else:
-        df_original = pd.read_excel(uploaded_file)
-    
-    st.success(f"✅ Data loaded successfully! {len(df_original)} records found.")
+# Upload file
+uploaded_file = "sbd first_submission_clean.xlsx"
+if uploaded_file:
+    # Read the uploaded Excel file
+    df_original = pd.read_excel(uploaded_file)
     
     # Load shapefile
     try:
         gdf = gpd.read_file("Chiefdom2021.shp")
-        st.success(f"✅ Shapefile loaded successfully! {len(gdf)} chiefdoms found.")
+        st.success("✅ Shapefile loaded successfully!")
     except Exception as e:
         st.error(f"❌ Could not load shapefile: {e}")
         gdf = None
     
-    # Extract data from QR codes
-    st.subheader("📋 Data Extraction from QR Codes")
+    # Create empty lists to store extracted data
+    districts, chiefdoms, phu_names, community_names, school_names = [], [], [], [], []
     
-    with st.spinner("Extracting data from QR codes..."):
-        # Create empty lists to store extracted data
-        districts, chiefdoms, phu_names, community_names, school_names = [], [], [], [], []
+    # Process each row in the "Scan QR code" column
+    for qr_text in df_original["Scan QR code"]:
+        if pd.isna(qr_text):
+            districts.append(None)
+            chiefdoms.append(None)
+            phu_names.append(None)
+            community_names.append(None)
+            school_names.append(None)
+            continue
+            
+        # Extract values using regex patterns
+        district_match = re.search(r"District:\s*([^\n]+)", str(qr_text))
+        districts.append(district_match.group(1).strip() if district_match else None)
         
-        # Process each row in the "Scan QR code" column
-        for qr_text in df_original["Scan QR code"]:
-            if pd.isna(qr_text):
-                districts.append(None)
-                chiefdoms.append(None)
-                phu_names.append(None)
-                community_names.append(None)
-                school_names.append(None)
-                continue
-                
-            # Extract values using regex patterns
-            district_match = re.search(r"District:\s*([^\n]+)", str(qr_text))
-            districts.append(district_match.group(1).strip() if district_match else None)
-            
-            chiefdom_match = re.search(r"Chiefdom:\s*([^\n]+)", str(qr_text))
-            chiefdoms.append(chiefdom_match.group(1).strip() if chiefdom_match else None)
-            
-            phu_match = re.search(r"PHU name:\s*([^\n]+)", str(qr_text))
-            phu_names.append(phu_match.group(1).strip() if phu_match else None)
-            
-            community_match = re.search(r"Community name:\s*([^\n]+)", str(qr_text))
-            community_names.append(community_match.group(1).strip() if community_match else None)
-            
-            school_match = re.search(r"Name of school:\s*([^\n]+)", str(qr_text))
-            school_names.append(school_match.group(1).strip() if school_match else None)
+        chiefdom_match = re.search(r"Chiefdom:\s*([^\n]+)", str(qr_text))
+        chiefdoms.append(chiefdom_match.group(1).strip() if chiefdom_match else None)
         
-        # Create extracted DataFrame
-        extracted_df = pd.DataFrame({
-            "District": districts,
-            "Chiefdom": chiefdoms,
-            "PHU Name": phu_names,
-            "Community Name": community_names,
-            "School Name": school_names
-        })
+        phu_match = re.search(r"PHU name:\s*([^\n]+)", str(qr_text))
+        phu_names.append(phu_match.group(1).strip() if phu_match else None)
         
-        # Add all other columns from the original DataFrame
-        for column in df_original.columns:
-            if column != "Scan QR code":
-                extracted_df[column] = df_original[column]
+        community_match = re.search(r"Community name:\s*([^\n]+)", str(qr_text))
+        community_names.append(community_match.group(1).strip() if community_match else None)
+        
+        school_match = re.search(r"Name of school:\s*([^\n]+)", str(qr_text))
+        school_names.append(school_match.group(1).strip() if school_match else None)
     
-    st.success(f"✅ Data extraction completed! Extracted information for {len(extracted_df)} records.")
+    # Create a new DataFrame with extracted values
+    extracted_df = pd.DataFrame({
+        "District": districts,
+        "Chiefdom": chiefdoms,
+        "PHU Name": phu_names,
+        "Community Name": community_names,
+        "School Name": school_names
+    })
     
-    # Generate summaries
+    # Add all other columns from the original DataFrame
+    for column in df_original.columns:
+        if column != "Scan QR code":  # Skip the QR code column since we've already processed it
+            extracted_df[column] = df_original[column]
+    
+    # Debug GPS data quality
+    debug_gps_data(extracted_df)
+    
+    # Create sidebar filters early so they're available for all sections
+    st.sidebar.header("Filter Options")
+    
+    # Create radio buttons to select which level to group by
+    grouping_selection = st.sidebar.radio(
+        "Select the level for grouping:",
+        ["District", "Chiefdom", "PHU Name", "Community Name", "School Name"],
+        index=0  # Default to 'District'
+    )
+    
+    # Dictionary to define the hierarchy for each grouping level
+    hierarchy = {
+        "District": ["District"],
+        "Chiefdom": ["District", "Chiefdom"],
+        "PHU Name": ["District", "Chiefdom", "PHU Name"],
+        "Community Name": ["District", "Chiefdom", "PHU Name", "Community Name"],
+        "School Name": ["District", "Chiefdom", "PHU Name", "Community Name", "School Name"]
+    }
+    
+    # Initialize filtered dataframe with the full dataset
+    filtered_df = extracted_df.copy()
+    
+    # Dictionary to store selected values for each level
+    selected_values = {}
+    
+    # Apply filters based on the hierarchy for the selected grouping level
+    for level in hierarchy[grouping_selection]:
+        # Filter out None/NaN values and get sorted unique values
+        level_values = sorted(filtered_df[level].dropna().unique())
+        
+        if level_values:
+            # Create selectbox for this level
+            selected_value = st.sidebar.selectbox(f"Select {level}", level_values)
+            selected_values[level] = selected_value
+            
+            # Apply filter to the dataframe
+            filtered_df = filtered_df[filtered_df[level] == selected_value]
+    
+    # Store map images for report
+    map_images = {}
+    
+    # Display Enhanced Geographic Distribution Maps with Complete GPS Coverage
+    st.subheader("🗺️ Enhanced Geographic Distribution Maps with Complete GPS Coverage")
+    
+    if gdf is not None:
+        # Create overall Sierra Leone map with ALL GPS points
+        map_images = create_overall_sierra_leone_map_with_all_gps(extracted_df, gdf, map_images)
+        
+        st.divider()
+        
+        # Create enhanced district maps with GPS for ALL districts
+        map_images = create_enhanced_district_maps_with_gps(extracted_df, gdf, map_images)
+        
+    else:
+        st.error("Shapefile not loaded. Cannot display maps.")
+    
+    # Display Original Data Sample
+    st.subheader("📄 Original Data Sample")
+    st.dataframe(df_original.head())
+    
+    # Display Extracted Data
+    st.subheader("📋 Extracted Data")
+    st.dataframe(extracted_df)
+    
+    # Add download button for CSV
+    csv = extracted_df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Extracted Data as CSV",
+        data=csv,
+        file_name="extracted_school_data.csv",
+        mime="text/csv"
+    )
+    
+    # Generate comprehensive summaries
     summaries = generate_summaries(extracted_df)
     
     # Display Overall Summary
@@ -486,151 +826,75 @@ try:
     with col8:
         st.metric("Girls", f"{summaries['overall']['total_girls']:,}")
     
-    # Geographic Distribution Maps
-    st.subheader("🗺️ Geographic Distribution Maps")
-    
-    if gdf is not None:
-        # Create overall Sierra Leone map
-        st.write("### Sierra Leone - National Overview")
-        
-        with st.spinner("Creating national overview map..."):
-            fig_overall, ax_overall = plt.subplots(figsize=(16, 12))
-            
-            # Plot all chiefdoms
-            gdf.plot(ax=ax_overall, color='lightgray', edgecolor='black', alpha=0.6, linewidth=0.5)
-            
-            # Plot district boundaries
-            if 'FIRST_DNAM' in gdf.columns:
-                district_boundaries = gdf.dissolve(by='FIRST_DNAM')
-                district_boundaries.plot(ax=ax_overall, facecolor='none', edgecolor='blue', linewidth=3)
-                
-                # Add district labels
-                for idx, row in district_boundaries.iterrows():
-                    centroid = row.geometry.centroid
-                    ax_overall.annotate(
-                        idx,
-                        (centroid.x, centroid.y),
-                        fontsize=12,
-                        fontweight='bold',
-                        ha='center',
-                        va='center',
-                        color='black',
-                        bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8)
-                    )
-            
-            # Plot all GPS points
-            all_coords = []
-            if "GPS Location" in extracted_df.columns:
-                for _, row in extracted_df.iterrows():
-                    lat, lon = parse_gps_coordinates(row["GPS Location"])
-                    if lat is not None and lon is not None:
-                        all_coords.append([lat, lon])
-            
-            if all_coords:
-                lats, lons = zip(*all_coords)
-                ax_overall.scatter(
-                    lons, lats,
-                    c='red',
-                    s=80,
-                    alpha=0.8,
-                    edgecolors='white',
-                    linewidth=1,
-                    zorder=100,
-                    label=f'Schools ({len(all_coords)})'
-                )
-                ax_overall.legend(fontsize=14, loc='best')
-            
-            ax_overall.set_title(f'Sierra Leone - School Distribution Overview | {len(all_coords)} Schools across {summaries["overall"]["total_districts"]} Districts', 
-                               fontsize=18, fontweight='bold', pad=20)
-            ax_overall.set_xlabel('Longitude', fontsize=14)
-            ax_overall.set_ylabel('Latitude', fontsize=14)
-            ax_overall.grid(True, alpha=0.3)
-            
-            plt.tight_layout()
-            st.pyplot(fig_overall)
-            
-            # Save overall map
-            overall_buffer = save_map_as_png(fig_overall, "Sierra_Leone_Overall")
-            if overall_buffer:
-                st.session_state.map_images['sierra_leone_overall'] = overall_buffer
-        
-        # Create district-specific maps
-        st.write("### District-Specific Maps with GPS Coordinates")
-        
-        # Get all unique districts
-        districts = extracted_df['District'].dropna().unique()
-        
-        for district in sorted(districts):
-            st.write(f"#### {district} District")
-            
-            with st.spinner(f"Creating map for {district} district..."):
-                # Filter data for this district
-                district_data = extracted_df[extracted_df['District'] == district]
-                
-                # Create the map
-                fig = create_district_map(gdf, district, district_data)
-                
-                if fig is not None:
-                    st.pyplot(fig)
-                    
-                    # Save the map
-                    map_buffer = save_map_as_png(fig, f"{district}_District_Map")
-                    if map_buffer:
-                        st.session_state.map_images[f'{district.lower()}_district'] = map_buffer
-                    
-                    plt.close(fig)  # Close to free memory
-                else:
-                    st.warning(f"Could not create map for {district} district")
-    
-    # Enhanced Analysis Charts
-    st.subheader("📊 Enhanced Analysis Charts")
-    
     # Gender Analysis
-    st.write("### Gender Distribution Analysis")
+    st.subheader("👫 Gender Analysis")
     
-    # Overall gender pie chart
-    fig_gender, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-    
-    # Overall gender distribution
+    # Overall gender distribution pie chart
+    fig_gender, ax_gender = plt.subplots(figsize=(10, 8))
     labels = ['Boys', 'Girls']
     sizes = [summaries['overall']['total_boys'], summaries['overall']['total_girls']]
     colors = ['#4A90E2', '#F39C12']
     
-    ax1.pie(sizes, labels=labels, autopct='%1.1f%%', colors=colors, startangle=90)
-    ax1.set_title('Overall Gender Distribution', fontsize=16, fontweight='bold')
-    
-    # Gender by district
-    districts = [d['district'] for d in summaries['district']]
-    boys_counts = [d['boys'] for d in summaries['district']]
-    girls_counts = [d['girls'] for d in summaries['district']]
-    
-    x = np.arange(len(districts))
-    width = 0.35
-    
-    ax2.bar(x - width/2, boys_counts, width, label='Boys', color='#4A90E2')
-    ax2.bar(x + width/2, girls_counts, width, label='Girls', color='#F39C12')
-    
-    ax2.set_title('Gender Distribution by District', fontsize=16, fontweight='bold')
-    ax2.set_xlabel('Districts')
-    ax2.set_ylabel('Number of Students')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(districts, rotation=45, ha='right')
-    ax2.legend()
-    ax2.grid(axis='y', alpha=0.3)
-    
+    wedges, texts, autotexts = ax_gender.pie(sizes, labels=labels, autopct='%1.1f%%', 
+                                            colors=colors, startangle=90)
+    ax_gender.set_title('Overall Gender Distribution', fontsize=16, fontweight='bold', pad=20)
+    plt.setp(autotexts, size=14, weight="bold")
+    plt.setp(texts, size=12, weight="bold")
     plt.tight_layout()
     st.pyplot(fig_gender)
     
     # Save gender chart
-    gender_buffer = save_map_as_png(fig_gender, "Gender_Analysis")
-    if gender_buffer:
-        st.session_state.map_images['gender_analysis'] = gender_buffer
+    map_images['gender_overall'] = save_map_as_png(fig_gender, "Overall_Gender_Distribution")
     
-    # Enrollment vs ITN Distribution Analysis
-    st.write("### Enrollment vs ITN Distribution Analysis")
+    # Gender ratio by district chart
+    districts = [d['district'] for d in summaries['district']]
+    boys_counts = [d['boys'] for d in summaries['district']]
+    girls_counts = [d['girls'] for d in summaries['district']]
     
-    # Calculate district analysis
+    fig_gender_district, ax_gender_district = plt.subplots(figsize=(14, 8))
+    x = np.arange(len(districts))
+    width = 0.35
+    
+    bars1 = ax_gender_district.bar(x - width/2, boys_counts, width, label='Boys', color='#4A90E2', edgecolor='navy', linewidth=1)
+    bars2 = ax_gender_district.bar(x + width/2, girls_counts, width, label='Girls', color='#F39C12', edgecolor='darkorange', linewidth=1)
+    
+    ax_gender_district.set_title('Gender Distribution by District', fontsize=16, fontweight='bold', pad=20)
+    ax_gender_district.set_xlabel('Districts', fontsize=12, fontweight='bold')
+    ax_gender_district.set_ylabel('Number of Students', fontsize=12, fontweight='bold')
+    ax_gender_district.set_xticks(x)
+    ax_gender_district.set_xticklabels(districts, rotation=45, ha='right')
+    ax_gender_district.legend(fontsize=12)
+    ax_gender_district.grid(axis='y', alpha=0.3, linestyle='--')
+    
+    # Add value labels on bars
+    for bar in bars1:
+        height = bar.get_height()
+        ax_gender_district.annotate(f'{int(height):,}',
+                                  xy=(bar.get_x() + bar.get_width() / 2, height),
+                                  xytext=(0, 3),
+                                  textcoords="offset points",
+                                  ha='center', va='bottom', fontsize=10, fontweight='bold')
+    
+    for bar in bars2:
+        height = bar.get_height()
+        ax_gender_district.annotate(f'{int(height):,}',
+                                  xy=(bar.get_x() + bar.get_width() / 2, height),
+                                  xytext=(0, 3),
+                                  textcoords="offset points",
+                                  ha='center', va='bottom', fontsize=10, fontweight='bold')
+    
+    plt.tight_layout()
+    st.pyplot(fig_gender_district)
+    
+    # Save gender district chart
+    map_images['gender_district'] = save_map_as_png(fig_gender_district, "Gender_Distribution_by_District")
+    
+    # Enrollment and ITN Distribution Analysis
+    st.subheader("📊 Enrollment and ITN Distribution Analysis")
+    
+    # Calculate total enrollment and ITN distribution by district
     district_analysis = []
+    
     for district in extracted_df['District'].dropna().unique():
         district_data = extracted_df[extracted_df['District'] == district]
         
@@ -638,20 +902,23 @@ try:
         total_boys = 0
         total_girls = 0
         
+        # Sum enrollments and boys/girls by class using correct columns
         for class_num in range(1, 6):
+            # Use "Number of enrollments in class X" for total students
             enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
-            boys_col = f"How many boys in Class {class_num} received ITNs?"
-            girls_col = f"How many girls in Class {class_num} received ITNs?"
-            
             if enrollment_col in district_data.columns:
                 total_enrollment += int(district_data[enrollment_col].fillna(0).sum())
+            
+            # Use boys + girls for total ITNs (actual beneficiaries)
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
             if boys_col in district_data.columns:
                 total_boys += int(district_data[boys_col].fillna(0).sum())
             if girls_col in district_data.columns:
                 total_girls += int(district_data[girls_col].fillna(0).sum())
         
-        total_itn = total_boys + total_girls
-        itn_remaining = total_enrollment - total_itn
+        total_itn = total_boys + total_girls  # Total ITNs = boys + girls
+        itn_remaining = total_enrollment - total_itn  # Remaining = enrollment - distributed
         coverage = (total_itn / total_enrollment * 100) if total_enrollment > 0 else 0
         
         district_analysis.append({
@@ -664,141 +931,1071 @@ try:
     
     district_df = pd.DataFrame(district_analysis)
     
-    # Create enhanced bar chart
-    fig_enhanced, ax_enhanced = plt.subplots(figsize=(16, 10))
+    # Create enhanced bar chart with enrollment, distributed, and remaining
+    fig_enhanced, ax_enhanced = plt.subplots(figsize=(16, 8))
     
     x = np.arange(len(district_df['District']))
     width = 0.25
     
+    # Create bars for each category
     bars1 = ax_enhanced.bar(x - width, district_df['Total_Enrollment'], width, 
-                           label='Total Enrollment', color='#47B5FF')
+                           label='Total Enrollment', color='#47B5FF', edgecolor='navy', linewidth=1)
     bars2 = ax_enhanced.bar(x, district_df['Total_ITN'], width, 
-                           label='ITNs Distributed', color='lightcoral')
+                           label='ITNs Distributed (Boys + Girls)', color='lightcoral', edgecolor='darkred', linewidth=1)
     bars3 = ax_enhanced.bar(x + width, district_df['ITN_Remaining'], width, 
-                           label='ITNs Remaining', color='hotpink')
+                           label='ITNs Remaining', color='hotpink', edgecolor='darkmagenta', linewidth=1)
     
-    ax_enhanced.set_title('District Analysis: Enrollment vs ITN Distribution', fontsize=18, fontweight='bold')
-    ax_enhanced.set_xlabel('Districts', fontsize=14)
-    ax_enhanced.set_ylabel('Number of Students/ITNs', fontsize=14)
+    # Customize the chart
+    ax_enhanced.set_title('District Analysis: Enrollment vs ITN Distribution', fontsize=16, fontweight='bold', pad=20)
+    ax_enhanced.set_xlabel('Districts', fontsize=12, fontweight='bold')
+    ax_enhanced.set_ylabel('Number of Students/ITNs', fontsize=12, fontweight='bold')
     ax_enhanced.set_xticks(x)
     ax_enhanced.set_xticklabels(district_df['District'], rotation=45, ha='right')
     ax_enhanced.legend(fontsize=12)
-    ax_enhanced.grid(axis='y', alpha=0.3)
+    ax_enhanced.grid(axis='y', alpha=0.3, linestyle='--')
     
-    # Add value labels
-    def add_value_labels(bars):
-        for bar in bars:
-            height = bar.get_height()
-            if height > 0:
-                ax_enhanced.annotate(f'{int(height):,}',
-                                   xy=(bar.get_x() + bar.get_width() / 2, height),
-                                   xytext=(0, 3),
-                                   textcoords="offset points",
-                                   ha='center', va='bottom', fontsize=9, fontweight='bold')
+    # Add value labels on bars
+    for bar in bars1:
+        height = bar.get_height()
+        ax_enhanced.annotate(f'{int(height):,}',
+                            xy=(bar.get_x() + bar.get_width() / 2, height),
+                            xytext=(0, 3),
+                            textcoords="offset points",
+                            ha='center', va='bottom', fontsize=9, fontweight='bold')
     
-    add_value_labels(bars1)
-    add_value_labels(bars2)
-    add_value_labels(bars3)
+    for bar in bars2:
+        height = bar.get_height()
+        ax_enhanced.annotate(f'{int(height):,}',
+                            xy=(bar.get_x() + bar.get_width() / 2, height),
+                            xytext=(0, 3),
+                            textcoords="offset points",
+                            ha='center', va='bottom', fontsize=9, fontweight='bold')
+    
+    for bar in bars3:
+        height = bar.get_height()
+        if height > 0:  # Only show label for positive values
+            ax_enhanced.annotate(f'{int(height):,}',
+                                xy=(bar.get_x() + bar.get_width() / 2, height),
+                                xytext=(0, 3),
+                                textcoords="offset points",
+                                ha='center', va='bottom', fontsize=9, fontweight='bold')
     
     plt.tight_layout()
     st.pyplot(fig_enhanced)
     
     # Save enhanced chart
-    enhanced_buffer = save_map_as_png(fig_enhanced, "Enhanced_Analysis")
-    if enhanced_buffer:
-        st.session_state.map_images['enhanced_analysis'] = enhanced_buffer
+    map_images['enhanced_enrollment_analysis'] = save_map_as_png(fig_enhanced, "Enhanced_Enrollment_Analysis")
+    
+    # Create overall pie chart for enrollment vs distributed vs remaining
+    st.subheader("📊 Overall Distribution Overview (Pie Chart)")
+    
+    # Calculate overall totals
+    overall_enrollment = district_df['Total_Enrollment'].sum()
+    overall_distributed = district_df['Total_ITN'].sum()
+    overall_remaining = district_df['ITN_Remaining'].sum()
+    
+    if overall_enrollment > 0:
+        fig_overall_pie, ax_overall_pie = plt.subplots(figsize=(10, 8))
+        
+        sizes = [overall_distributed, overall_remaining]
+        labels = [f'ITNs Distributed\n({overall_distributed:,})', f'ITNs Remaining\n({overall_remaining:,})']
+        colors = ['lightcoral', 'hotpink']
+        explode = (0.05, 0)  # Slightly separate the distributed slice
+        
+        wedges, texts, autotexts = ax_overall_pie.pie(sizes, labels=labels, autopct='%1.1f%%',
+                                                     colors=colors, startangle=90, explode=explode)
+        ax_overall_pie.set_title(f'Overall ITN Distribution Status\nTotal Enrollment: {overall_enrollment:,}', 
+                                fontsize=16, fontweight='bold', pad=20)
+        
+        # Enhance text styling
+        plt.setp(autotexts, size=12, weight="bold", color='white')
+        plt.setp(texts, size=11, weight="bold")
+        
+        plt.tight_layout()
+        st.pyplot(fig_overall_pie)
+        
+        # Save overall pie chart
+        map_images['overall_distribution_pie'] = save_map_as_png(fig_overall_pie, "Overall_Distribution_Pie")
+    
+    # District-level pie charts
+    st.subheader("📊 District-Level Distribution (Pie Charts)")
+    
+    # Enrollment pie chart
+    if district_df['Total_Enrollment'].sum() > 0:
+        fig_pie1, ax_pie1 = plt.subplots(figsize=(10, 8))
+        colors_enrollment = ['#87CEEB', '#4682B4', '#1E90FF', '#0000CD', '#000080']
+        # Filter out zero values for pie chart
+        enrollment_data = district_df[district_df['Total_Enrollment'] > 0]
+        if len(enrollment_data) > 0:
+            wedges, texts, autotexts = ax_pie1.pie(enrollment_data['Total_Enrollment'], 
+                                                  labels=enrollment_data['District'],
+                                                  autopct='%1.1f%%',
+                                                  colors=colors_enrollment[:len(enrollment_data)],
+                                                  startangle=90)
+            ax_pie1.set_title('Total Enrollment Distribution by District', fontsize=16, fontweight='bold', pad=20)
+            plt.setp(autotexts, size=12, weight="bold")
+            plt.setp(texts, size=11, weight="bold")
+            plt.tight_layout()
+            st.pyplot(fig_pie1)
+            
+            # Save enrollment pie chart
+            map_images['enrollment_pie'] = save_map_as_png(fig_pie1, "Enrollment_Distribution_Pie")
+        else:
+            st.warning("No enrollment data available for pie chart")
+    else:
+        st.warning("No enrollment data available for pie chart")
+    
+    # ITN distribution pie chart
+    if district_df['Total_ITN'].sum() > 0:
+        fig_pie2, ax_pie2 = plt.subplots(figsize=(10, 8))
+        colors_itn = ['#90EE90', '#32CD32', '#228B22', '#006400', '#004000']
+        # Filter out zero values for pie chart
+        itn_data = district_df[district_df['Total_ITN'] > 0]
+        if len(itn_data) > 0:
+            wedges, texts, autotexts = ax_pie2.pie(itn_data['Total_ITN'], 
+                                                  labels=itn_data['District'],
+                                                  autopct='%1.1f%%',
+                                                  colors=colors_itn[:len(itn_data)],
+                                                  startangle=90)
+            ax_pie2.set_title('Total ITN Distribution by District', fontsize=16, fontweight='bold', pad=20)
+            plt.setp(autotexts, size=12, weight="bold")
+            plt.setp(texts, size=11, weight="bold")
+            plt.tight_layout()
+            st.pyplot(fig_pie2)
+            
+            # Save ITN pie chart
+            map_images['itn_pie'] = save_map_as_png(fig_pie2, "ITN_Distribution_Pie")
+        else:
+            st.warning("No ITN distribution data available for pie chart")
+    else:
+        st.warning("No ITN distribution data available for pie chart")
     
     # Display Summary Tables
-    st.subheader("📈 Summary Tables")
-    
-    # District Summary Table
-    st.write("### District Summary")
+    st.subheader("📈 District Summary Table")
     district_summary_df = pd.DataFrame(summaries['district'])
-    district_summary_df.columns = ['District', 'Schools', 'Chiefdoms', 'Boys', 'Girls', 'Enrollment', 'ITNs', 'Coverage (%)', 'ITNs Remaining']
-    st.dataframe(district_summary_df, use_container_width=True)
+    st.dataframe(district_summary_df)
     
-    # Chiefdom Summary Table
-    st.write("### Chiefdom Summary")
+    st.subheader("📈 Chiefdom Summary Table")
     chiefdom_summary_df = pd.DataFrame(summaries['chiefdom'])
-    chiefdom_summary_df.columns = ['District', 'Chiefdom', 'Schools', 'Boys', 'Girls', 'Enrollment', 'ITNs', 'Coverage (%)', 'ITNs Remaining']
-    st.dataframe(chiefdom_summary_df, use_container_width=True)
+    st.dataframe(chiefdom_summary_df)
     
-    # Download Section
-    st.subheader("📥 Download Options")
+    # Chiefdoms Analysis by District
+    st.subheader("📊 Chiefdoms Analysis by District")
     
-    col1, col2, col3, col4 = st.columns(4)
+    # Get all unique districts that have chiefdom data
+    districts_with_chiefdoms = extracted_df[extracted_df['Chiefdom'].notna()]['District'].unique()
     
+    for district in districts_with_chiefdoms:
+        st.write(f"### {district} District - Chiefdoms Analysis")
+        
+        # Filter data for this district
+        district_data = extracted_df[extracted_df['District'] == district]
+        district_chiefdoms = district_data['Chiefdom'].dropna().unique()
+        
+        if len(district_chiefdoms) > 0:
+            # Calculate by chiefdom for this district
+            district_chiefdom_analysis = []
+            
+            for chiefdom in district_chiefdoms:
+                chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
+                
+                total_enrollment = 0
+                total_boys = 0
+                total_girls = 0
+                
+                for class_num in range(1, 6):
+                    # Use "Number of enrollments in class X" for total students
+                    enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
+                    if enrollment_col in chiefdom_data.columns:
+                        total_enrollment += int(chiefdom_data[enrollment_col].fillna(0).sum())
+                    
+                    # Use boys + girls for total ITNs (actual beneficiaries)
+                    boys_col = f"How many boys in Class {class_num} received ITNs?"
+                    girls_col = f"How many girls in Class {class_num} received ITNs?"
+                    if boys_col in chiefdom_data.columns:
+                        total_boys += int(chiefdom_data[boys_col].fillna(0).sum())
+                    if girls_col in chiefdom_data.columns:
+                        total_girls += int(chiefdom_data[girls_col].fillna(0).sum())
+                
+                total_itn = total_boys + total_girls  # Total ITNs = boys + girls
+                coverage = (total_itn / total_enrollment * 100) if total_enrollment > 0 else 0
+                
+                district_chiefdom_analysis.append({
+                    'Chiefdom': chiefdom,
+                    'Total_Enrollment': total_enrollment,
+                    'Total_ITN': total_itn,
+                    'Coverage': coverage
+                })
+            
+            district_chiefdom_df = pd.DataFrame(district_chiefdom_analysis)
+            district_chiefdom_df = district_chiefdom_df.sort_values('Total_Enrollment', ascending=False)
+            
+            if len(district_chiefdom_df) > 0:
+                # Create individual large plots for this district's chiefdoms
+                
+                # Plot 1: Total Enrollment by Chiefdoms in this District (Blue)
+                fig1, ax1 = plt.subplots(figsize=(16, 10))
+                bars1 = ax1.barh(district_chiefdom_df['Chiefdom'], district_chiefdom_df['Total_Enrollment'], 
+                                 color='#4682B4', edgecolor='navy', linewidth=1.5)
+                ax1.set_title(f'{district} District - Total Enrollment by Chiefdom', fontsize=18, fontweight='bold', pad=20)
+                ax1.set_xlabel('Number of Students', fontsize=14, fontweight='bold')
+                ax1.set_ylabel('Chiefdoms', fontsize=14, fontweight='bold')
+                
+                # Add value labels
+                for i, v in enumerate(district_chiefdom_df['Total_Enrollment']):
+                    if v > 0:  # Only show label if value is greater than 0
+                        ax1.text(v + max(district_chiefdom_df['Total_Enrollment']) * 0.02, i, 
+                                 f'{int(v):,}', va='center', fontweight='bold', fontsize=12)
+                
+                # Customize appearance
+                ax1.grid(axis='x', alpha=0.3, linestyle='--')
+                ax1.tick_params(axis='both', which='major', labelsize=11)
+                plt.tight_layout()
+                st.pyplot(fig1)
+                
+                # Save enrollment chart
+                map_images[f'{district}_enrollment'] = save_map_as_png(fig1, f"{district}_Enrollment_by_Chiefdom")
+                
+                # Plot 2: Total ITN Distributed by Chiefdoms in this District (Green)
+                fig2, ax2 = plt.subplots(figsize=(16, 10))
+                bars2 = ax2.barh(district_chiefdom_df['Chiefdom'], district_chiefdom_df['Total_ITN'], 
+                                 color='#32CD32', edgecolor='darkgreen', linewidth=1.5)
+                ax2.set_title(f'{district} District - Total ITN Distributed by Chiefdom', fontsize=18, fontweight='bold', pad=20)
+                ax2.set_xlabel('Number of ITNs', fontsize=14, fontweight='bold')
+                ax2.set_ylabel('Chiefdoms', fontsize=14, fontweight='bold')
+                
+                # Add value labels
+                for i, v in enumerate(district_chiefdom_df['Total_ITN']):
+                    if v > 0:  # Only show label if value is greater than 0
+                        ax2.text(v + max(district_chiefdom_df['Total_ITN']) * 0.02, i, 
+                                 f'{int(v):,}', va='center', fontweight='bold', fontsize=12)
+                
+                # Customize appearance
+                ax2.grid(axis='x', alpha=0.3, linestyle='--')
+                ax2.tick_params(axis='both', which='major', labelsize=11)
+                plt.tight_layout()
+                st.pyplot(fig2)
+                
+                # Save ITN chart
+                map_images[f'{district}_itn'] = save_map_as_png(fig2, f"{district}_ITN_by_Chiefdom")
+                
+                # Plot 3: Coverage by Chiefdoms in this District (Orange)
+                fig3, ax3 = plt.subplots(figsize=(16, 10))
+                bars3 = ax3.barh(district_chiefdom_df['Chiefdom'], district_chiefdom_df['Coverage'], 
+                                 color='#FF8C00', edgecolor='darkorange', linewidth=1.5)
+                ax3.set_title(f'{district} District - ITN Coverage by Chiefdom (%)', fontsize=18, fontweight='bold', pad=20)
+                ax3.set_xlabel('Coverage Percentage (%)', fontsize=14, fontweight='bold')
+                ax3.set_ylabel('Chiefdoms', fontsize=14, fontweight='bold')
+                
+                # Add value labels
+                for i, v in enumerate(district_chiefdom_df['Coverage']):
+                    if v > 0:  # Only show label if value is greater than 0
+                        ax3.text(v + max(district_chiefdom_df['Coverage']) * 0.02, i, 
+                                 f'{v:.1f}%', va='center', fontweight='bold', fontsize=12)
+                
+                # Customize appearance
+                ax3.grid(axis='x', alpha=0.3, linestyle='--')
+                ax3.tick_params(axis='both', which='major', labelsize=11)
+                ax3.set_xlim(0, max(district_chiefdom_df['Coverage']) * 1.15)  # Add some space for labels
+                plt.tight_layout()
+                st.pyplot(fig3)
+                
+                # Save coverage chart
+                map_images[f'{district}_coverage'] = save_map_as_png(fig3, f"{district}_Coverage_by_Chiefdom")
+                
+                # Display summary table for this district
+                st.write(f"**{district} District Summary:**")
+                summary_cols = st.columns(3)
+                with summary_cols[0]:
+                    st.metric("Total Chiefdoms", len(district_chiefdom_df))
+                with summary_cols[1]:
+                    st.metric("Total Students", int(district_chiefdom_df['Total_Enrollment'].sum()))
+                with summary_cols[2]:
+                    st.metric("Total ITNs", int(district_chiefdom_df['Total_ITN'].sum()))
+                
+                st.divider()
+            else:
+                st.warning(f"No chiefdom data available for {district} district")
+        else:
+            st.warning(f"No chiefdoms found for {district} district")
+    
+    # Summary buttons section
+    st.subheader("📊 Summary Reports")
+    
+    # Create two columns for the summary buttons
+    col1, col2 = st.columns(2)
+    
+    # Button for District Summary
     with col1:
-        # CSV Download
-        csv_data = extracted_df.to_csv(index=False)
-        st.download_button(
-            label="📄 Download Data (CSV)",
-            data=csv_data,
-            file_name="sbd_extracted_data.csv",
-            mime="text/csv"
-        )
+        district_summary_button = st.button("Show District Summary")
     
+    # Button for Chiefdom Summary
     with col2:
-        # District Summary CSV
-        district_csv = district_summary_df.to_csv(index=False)
+        chiefdom_summary_button = st.button("Show Chiefdom Summary")
+    
+    # Display District Summary when button is clicked
+    if district_summary_button:
+        st.subheader("📈 Summary by District")
+        
+        # Create aggregation dictionary
+        agg_dict = {}
+        
+        # Add enrollment columns to aggregation
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
+            
+            if total_col in extracted_df.columns:
+                agg_dict[total_col] = "sum"
+            if boys_col in extracted_df.columns:
+                agg_dict[boys_col] = "sum"
+            if girls_col in extracted_df.columns:
+                agg_dict[girls_col] = "sum"
+        
+        # Group by District and aggregate
+        district_summary = extracted_df.groupby("District").agg(agg_dict).reset_index()
+        
+        # Calculate total enrollment
+        district_summary["Total Enrollment"] = 0
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            if total_col in district_summary.columns:
+                district_summary["Total Enrollment"] += district_summary[total_col]
+        
+        # Display summary table
+        st.dataframe(district_summary)
+        
+        # Download button for district summary
+        district_csv = district_summary.to_csv(index=False)
         st.download_button(
-            label="📊 District Summary (CSV)",
+            label="📥 Download District Summary as CSV",
             data=district_csv,
             file_name="district_summary.csv",
             mime="text/csv"
         )
+        
+        # Create a bar chart for district summary
+        fig, ax = plt.subplots(figsize=(12, 8))
+        district_summary.plot(kind="bar", x="District", y="Total Enrollment", ax=ax, color="blue")
+        ax.set_title("📊 Total Enrollment by District")
+        ax.set_xlabel("")
+        ax.set_ylabel("Number of Students")
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        st.pyplot(fig)
     
-    with col3:
-        # Chiefdom Summary CSV
-        chiefdom_csv = chiefdom_summary_df.to_csv(index=False)
+    # Display Chiefdom Summary when button is clicked
+    if chiefdom_summary_button:
+        st.subheader("📈 Summary by Chiefdom")
+        
+        # Create aggregation dictionary
+        agg_dict = {}
+        
+        # Add enrollment columns to aggregation
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            boys_col = f"How many boys in Class {class_num} received ITNs?"
+            girls_col = f"How many girls in Class {class_num} received ITNs?"
+            
+            if total_col in extracted_df.columns:
+                agg_dict[total_col] = "sum"
+            if boys_col in extracted_df.columns:
+                agg_dict[boys_col] = "sum"
+            if girls_col in extracted_df.columns:
+                agg_dict[girls_col] = "sum"
+        
+        # Group by District and Chiefdom and aggregate
+        chiefdom_summary = extracted_df.groupby(["District", "Chiefdom"]).agg(agg_dict).reset_index()
+        
+        # Calculate total enrollment
+        chiefdom_summary["Total Enrollment"] = 0
+        for class_num in range(1, 6):
+            total_col = f"How many pupils are enrolled in Class {class_num}?"
+            if total_col in chiefdom_summary.columns:
+                chiefdom_summary["Total Enrollment"] += chiefdom_summary[total_col]
+        
+        # Display summary table
+        st.dataframe(chiefdom_summary)
+        
+        # Download button for chiefdom summary
+        chiefdom_csv = chiefdom_summary.to_csv(index=False)
         st.download_button(
-            label="📋 Chiefdom Summary (CSV)",
+            label="📥 Download Chiefdom Summary as CSV",
             data=chiefdom_csv,
             file_name="chiefdom_summary.csv",
             mime="text/csv"
         )
-    
-    with col4:
-        # Excel Download
-        if st.button("📊 Generate Excel Report"):
-            with st.spinner("Generating Excel report..."):
-                try:
-                    excel_buffer = BytesIO()
-                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                        extracted_df.to_excel(writer, sheet_name='Raw Data', index=False)
-                        district_summary_df.to_excel(writer, sheet_name='District Summary', index=False)
-                        chiefdom_summary_df.to_excel(writer, sheet_name='Chiefdom Summary', index=False)
-                    
-                    excel_data = excel_buffer.getvalue()
-                    
-                    st.download_button(
-                        label="💾 Download Excel Report",
-                        data=excel_data,
-                        file_name="sbd_complete_report.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                    st.success("✅ Excel report generated successfully!")
-                except Exception as e:
-                    st.error(f"Error generating Excel report: {str(e)}")
-    
-    # Display saved maps information
-    if st.session_state.map_images:
-        st.subheader("🗺️ Generated Maps")
-        st.success(f"✅ {len(st.session_state.map_images)} maps have been generated and saved!")
         
-        with st.expander("View Generated Maps List"):
-            for map_name in st.session_state.map_images.keys():
-                st.write(f"• {map_name}")
+        # Create a temporary label for the chart
+        chiefdom_summary['Label'] = chiefdom_summary['District'] + '\n' + chiefdom_summary['Chiefdom']
+        
+        # Create a bar chart for chiefdom summary
+        fig, ax = plt.subplots(figsize=(14, 10))
+        chiefdom_summary.plot(kind="barh", x="Label", y="Total Enrollment", ax=ax, color="blue")
+        ax.set_title("📊 Total Enrollment by District and Chiefdom")
+        ax.set_ylabel("")
+        ax.set_xlabel("Number of Students")
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    # Visualization and filtering section - CALCULATE FROM RAW DATA
+    st.subheader("🔍 Detailed Data Filtering and Visualization")
+    
+    # Check if data is available after filtering
+    if not filtered_df.empty:
+        st.write(f"### Filtered Data - {len(filtered_df)} records")
+        st.dataframe(filtered_df)
+        
+        # Download button for filtered data
+        filtered_csv = filtered_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download Filtered Data as CSV",
+            data=filtered_csv,
+            file_name="filtered_data.csv",
+            mime="text/csv"
+        )
+        
+        # Define the hierarchy levels to include in the summary
+        group_columns = hierarchy[grouping_selection]
+        
+        # Calculate enrollment from RAW DATA - Manual calculation
+        st.write("**Calculating enrollment from raw data...**")
+        
+        # Get unique groups
+        if len(group_columns) == 1:
+            unique_groups = filtered_df[group_columns[0]].dropna().unique()
+        else:
+            unique_groups = filtered_df[group_columns].dropna().drop_duplicates()
+        
+        # Manual calculation for each group
+        summary_data = []
+        
+        if len(group_columns) == 1:
+            # Single column grouping
+            for group_value in unique_groups:
+                group_data = filtered_df[filtered_df[group_columns[0]] == group_value]
+                
+                # Calculate enrollment from raw data
+                total_enrollment = 0
+                total_itns = 0
+                
+                for class_num in range(1, 6):
+                    # Enrollment columns
+                    enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
+                    if enrollment_col in group_data.columns:
+                        total_enrollment += int(group_data[enrollment_col].fillna(0).sum())
+                    
+                    # ITN columns
+                    boys_col = f"How many boys in Class {class_num} received ITNs?"
+                    girls_col = f"How many girls in Class {class_num} received ITNs?"
+                    if boys_col in group_data.columns:
+                        total_itns += int(group_data[boys_col].fillna(0).sum())
+                    if girls_col in group_data.columns:
+                        total_itns += int(group_data[girls_col].fillna(0).sum())
+                
+                summary_data.append({
+                    group_columns[0]: group_value,
+                    'Total Enrollment': total_enrollment,
+                    'Total ITNs': total_itns,
+                    'Group': str(group_value)
+                })
+        
+        else:
+            # Multiple column grouping
+            for _, group_row in unique_groups.iterrows():
+                # Filter for this specific group
+                filter_condition = True
+                for col in group_columns:
+                    filter_condition = filter_condition & (filtered_df[col] == group_row[col])
+                
+                group_data = filtered_df[filter_condition]
+                
+                # Calculate enrollment from raw data
+                total_enrollment = 0
+                total_itns = 0
+                
+                for class_num in range(1, 6):
+                    # Enrollment columns
+                    enrollment_col = f"How many pupils are enrolled in Class {class_num}?"
+                    if enrollment_col in group_data.columns:
+                        total_enrollment += int(group_data[enrollment_col].fillna(0).sum())
+                    
+                    # ITN columns
+                    boys_col = f"How many boys in Class {class_num} received ITNs?"
+                    girls_col = f"How many girls in Class {class_num} received ITNs?"
+                    if boys_col in group_data.columns:
+                        total_itns += int(group_data[boys_col].fillna(0).sum())
+                    if girls_col in group_data.columns:
+                        total_itns += int(group_data[girls_col].fillna(0).sum())
+                
+                # Create summary row
+                summary_row = {}
+                for col in group_columns:
+                    summary_row[col] = group_row[col]
+                summary_row['Total Enrollment'] = total_enrollment
+                summary_row['Total ITNs'] = total_itns
+                summary_row['Group'] = ' - '.join([str(group_row[col]) for col in group_columns])
+                
+                summary_data.append(summary_row)
+        
+        # Convert to DataFrame
+        grouped_data = pd.DataFrame(summary_data)
+        
+        # Summary Table
+        st.subheader("📊 Detailed Summary Table")
+        
+        # Display key metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            total_enrollment = int(grouped_data['Total Enrollment'].sum())
+            st.metric("Total Enrollment", f"{total_enrollment:,}")
+        with col2:
+            total_itns = int(grouped_data['Total ITNs'].sum())
+            st.metric("Total ITNs", f"{total_itns:,}")
+        with col3:
+            coverage = (total_itns / total_enrollment * 100) if total_enrollment > 0 else 0
+            st.metric("Coverage", f"{coverage:.1f}%")
+        
+        # Display the summary table
+        display_columns = group_columns + ["Total Enrollment", "Total ITNs"]
+        st.dataframe(grouped_data[display_columns])
+        
+        # Create a bar chart ONLY if we have enrollment data
+        if total_enrollment > 0:
+            fig, ax = plt.subplots(figsize=(12, 8))
+            
+            # Sort by Total Enrollment for better visualization
+            grouped_data_sorted = grouped_data.sort_values("Total Enrollment", ascending=True)
+            
+            bars = ax.barh(grouped_data_sorted['Group'], grouped_data_sorted["Total Enrollment"], 
+                          color="#47B5FF", edgecolor='navy', linewidth=1.5)
+            ax.set_title(f"Total Enrollment by {grouping_selection}", fontsize=16, fontweight='bold')
+            ax.set_xlabel("Number of Students", fontsize=12, fontweight='bold')
+            ax.set_ylabel(grouping_selection, fontsize=12, fontweight='bold')
+            
+            # Add value labels on bars
+            max_val = grouped_data_sorted["Total Enrollment"].max()
+            for i, v in enumerate(grouped_data_sorted["Total Enrollment"]):
+                if v > 0:
+                    ax.text(v + max_val * 0.01, i, 
+                           f'{int(v):,}', va='center', fontweight='bold', fontsize=10)
+            
+            ax.grid(axis='x', alpha=0.3, linestyle='--')
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            st.success(f"✅ Chart generated with {total_enrollment:,} total students across {len(grouped_data)} groups")
+        else:
+            st.warning(f"No enrollment data calculated for the selected {grouping_selection} filters.")
+            st.write("**Debug:** Check if enrollment columns exist in your data")
+            
+        # Show calculation details
+        st.write("**Calculation Details:**")
+        for _, row in grouped_data.iterrows():
+            st.write(f"- {row['Group']}: {int(row['Total Enrollment']):,} students, {int(row['Total ITNs']):,} ITNs")
 
-except Exception as e:
-    st.error(f"❌ Error loading data: {str(e)}")
-    st.info("Please ensure you have the correct Excel file and shapefile in the working directory.")
+    else:
+        st.warning("No data available for the selected filters.")
 
-# Footer
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #666; font-size: 12px; margin-top: 2rem;">
-    <p>School-Based Distribution (SBD) Analysis Dashboard</p>
-    <p>Developed for Sierra Leone Malaria Control Program</p>
-</div>
-""", unsafe_allow_html=True)
+    # Final Data Export Section
+    st.subheader("📥 Export Complete Dataset")
+    st.write("Download the complete extracted dataset in your preferred format:")
+
+    # Create download buttons in columns
+    download_col1, download_col2, download_col3, download_col4 = st.columns(4)
+
+    with download_col1:
+        # CSV Download
+        csv_data = extracted_df.to_csv(index=False)
+        st.download_button(
+            label="📄 Download Complete Data as CSV",
+            data=csv_data,
+            file_name="complete_extracted_data.csv",
+            mime="text/csv",
+            help="Download all extracted data in CSV format"
+        )
+
+    with download_col2:
+        # Excel Download
+        excel_buffer = BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            extracted_df.to_excel(writer, sheet_name='Extracted Data', index=False)
+        excel_data = excel_buffer.getvalue()
+        
+        st.download_button(
+            label="📊 Download Complete Data as Excel",
+            data=excel_data,
+            file_name="complete_extracted_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="Download all extracted data in Excel format"
+        )
+
+    with download_col3:
+        # PDF Report Download
+        if st.button("📋 Generate PDF Report", help="Generate and download comprehensive report with all maps and summaries in PDF format"):
+            try:
+                # Import required libraries for PDF generation
+                from reportlab.lib.pagesizes import letter, A4
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak, Table, TableStyle
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import inch
+                from reportlab.lib import colors
+                from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+                from datetime import datetime
+                import tempfile
+                import os
+                
+                # Create a temporary directory for images
+                temp_dir = tempfile.mkdtemp()
+                
+                # Save all images to temporary files
+                temp_image_files = {}
+                for chart_key, image_buffer in map_images.items():
+                    temp_file = os.path.join(temp_dir, f"{chart_key}.png")
+                    image_buffer.seek(0)
+                    with open(temp_file, 'wb') as f:
+                        f.write(image_buffer.read())
+                    temp_image_files[chart_key] = temp_file
+                
+                # Create PDF buffer
+                pdf_buffer = BytesIO()
+                
+                # Create PDF document
+                doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+                story = []
+                
+                # Get styles
+                styles = getSampleStyleSheet()
+                title_style = ParagraphStyle(
+                    'CustomTitle',
+                    parent=styles['Heading1'],
+                    fontSize=24,
+                    alignment=TA_CENTER,
+                    spaceAfter=30
+                )
+                plot_title_style = ParagraphStyle(
+                    'PlotTitle',
+                    parent=styles['Heading2'],
+                    fontSize=18,
+                    alignment=TA_CENTER,
+                    spaceAfter=20
+                )
+                heading_style = ParagraphStyle(
+                    'CustomHeading',
+                    parent=styles['Heading2'],
+                    fontSize=16,
+                    alignment=TA_LEFT,
+                    spaceAfter=12
+                )
+                normal_style = styles['Normal']
+                
+                # Title Page
+                story.append(Paragraph("School-Based Distribution (SBD)", title_style))
+                story.append(Paragraph("Comprehensive Analysis Report with Maps and Summaries", heading_style))
+                story.append(Spacer(1, 20))
+                
+                # Add date
+                current_datetime = datetime.now()
+                date_text = f"Generated on: {current_datetime.strftime('%B %d, %Y at %I:%M %p')}"
+                story.append(Paragraph(date_text, normal_style))
+                
+                # Add summary statistics on title page
+                summary_stats = f"""
+                <b>KEY STATISTICS:</b><br/>
+                • Total Schools: {summaries['overall']['total_schools']:,}<br/>
+                • Districts: {summaries['overall']['total_districts']}<br/>
+                • Chiefdoms: {summaries['overall']['total_chiefdoms']}<br/>
+                • Total Students: {summaries['overall']['total_enrollment']:,}<br/>
+                • ITNs Distributed: {summaries['overall']['total_itn']:,}<br/>
+                • Coverage Rate: {summaries['overall']['coverage']:.1f}%<br/>
+                • Total Visualizations: {len(map_images)}
+                """
+                story.append(Spacer(1, 40))
+                story.append(Paragraph(summary_stats, normal_style))
+                story.append(PageBreak())
+                
+                # Add ALL charts - ONE PER PAGE with titles
+                chart_counter = 0
+                sorted_charts = sorted(map_images.keys())
+                
+                for chart_key in sorted_charts:
+                    chart_counter += 1
+                    
+                    # Create descriptive title for each chart
+                    if 'sierra_leone_complete_gps' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Sierra Leone Complete GPS Overview - All Schools"
+                        description = "Complete national overview showing all districts with GPS coordinates of schools across Sierra Leone."
+                    elif 'enhanced_gps' in chart_key.lower():
+                        district_name = chart_key.replace('_enhanced_gps', '').replace('_Enhanced_GPS_Map', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District Enhanced GPS Map"
+                        description = f"Enhanced detailed map of {district_name} District showing chiefdoms and exact GPS locations of all schools."
+                    elif 'enhanced_enrollment_analysis' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Enhanced Enrollment vs ITN Distribution Analysis"
+                        description = "Comprehensive analysis showing total enrollment, ITNs distributed, and remaining needs across districts."
+                    elif 'overall_distribution_pie' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Overall ITN Distribution Status (Pie Chart)"
+                        description = "Overall distribution showing proportion of students who have received ITNs versus those still waiting."
+                    elif 'gender_overall' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Overall Gender Distribution (Pie Chart)"
+                        description = "Overall gender distribution showing proportion of boys versus girls across all schools."
+                    elif 'gender_district' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Gender Distribution by District (Bar Chart)"
+                        description = "Comparison of boys and girls enrollment across all districts in the study."
+                    elif 'enrollment_pie' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: Student Enrollment by District (Pie Chart)"
+                        description = "Proportional distribution of total student enrollment across all districts."
+                    elif 'itn_pie' in chart_key.lower():
+                        chart_title = f"Chart {chart_counter}: ITN Distribution by District (Pie Chart)"
+                        description = "Proportional distribution of ITNs distributed across all districts."
+                    elif chart_key.endswith('_enrollment'):
+                        district_name = chart_key.replace('_enrollment', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District - Student Enrollment by Chiefdom"
+                        description = f"Student enrollment analysis across all chiefdoms within {district_name} District."
+                    elif chart_key.endswith('_itn'):
+                        district_name = chart_key.replace('_itn', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District - ITN Distribution by Chiefdom"
+                        description = f"ITN distribution analysis across all chiefdoms within {district_name} District."
+                    elif chart_key.endswith('_coverage'):
+                        district_name = chart_key.replace('_coverage', '')
+                        chart_title = f"Chart {chart_counter}: {district_name} District - ITN Coverage by Chiefdom"
+                        description = f"ITN coverage rate analysis across all chiefdoms within {district_name} District."
+                    else:
+                        chart_title = f"Chart {chart_counter}: {chart_key.replace('_', ' ').title()}"
+                        description = f"Analysis visualization showing {chart_key.replace('_', ' ')} data."
+                    
+                    # Add chart title
+                    story.append(Paragraph(chart_title, plot_title_style))
+                    
+                    # Add description
+                    story.append(Paragraph(description, normal_style))
+                    story.append(Spacer(1, 20))
+                    
+                    # Add the chart image with normal size (not expanded)
+                    if chart_key in temp_image_files:
+                        try:
+                            # Use consistent, normal size for all charts
+                            img = Image(temp_image_files[chart_key], width=7*inch, height=5*inch)
+                            img.hAlign = 'CENTER'
+                            story.append(img)
+                            
+                            # Add success note
+                            story.append(Spacer(1, 10))
+                            success_text = f"✓ Chart {chart_counter} successfully included"
+                            story.append(Paragraph(success_text, normal_style))
+                            
+                        except Exception as e:
+                            # Add error message if chart fails to load
+                            error_text = f"✗ Error loading chart {chart_counter}: {str(e)}"
+                            story.append(Paragraph(error_text, normal_style))
+                    
+                    # Add page break after each chart (except the last one)
+                    if chart_counter < len(sorted_charts):
+                        story.append(PageBreak())
+                
+                # Add final summary page
+                story.append(PageBreak())
+                story.append(Paragraph("Report Summary", title_style))
+                
+                final_summary = f"""
+                <b>REPORT GENERATION SUMMARY:</b><br/><br/>
+                
+                <b>Total Visualizations Generated:</b> {len(map_images)}<br/>
+                <b>Charts Successfully Included:</b> {chart_counter}<br/>
+                <b>Report Pages:</b> {chart_counter + 2} (Title + {chart_counter} Charts + Summary)<br/><br/>
+                
+                <b>VISUALIZATION BREAKDOWN:</b><br/>
+                • Geographic Maps: {len([k for k in map_images.keys() if 'sierra_leone' in k.lower() or 'enhanced_gps' in k.lower()])}<br/>
+                • Analysis Charts: {len([k for k in map_images.keys() if any(x in k.lower() for x in ['enhanced', 'overall', 'gender', 'pie'])])}<br/>
+                • Chiefdom Charts: {len([k for k in map_images.keys() if k.endswith(('_enrollment', '_itn', '_coverage'))])}<br/><br/>
+                
+                <b>DATA COVERAGE:</b><br/>
+                • Districts Analyzed: {summaries['overall']['total_districts']}<br/>
+                • Chiefdoms Covered: {summaries['overall']['total_chiefdoms']}<br/>
+                • Schools Surveyed: {summaries['overall']['total_schools']:,}<br/>
+                • Students Enrolled: {summaries['overall']['total_enrollment']:,}<br/><br/>
+                
+                <b>REPORT SPECIFICATIONS:</b><br/>
+                • Format: PDF (Portable Document Format)<br/>
+                • Page Size: A4<br/>
+                • Chart Resolution: High Quality (300 DPI)<br/>
+                • Layout: One chart per page with descriptive titles<br/>
+                • Generation Time: {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}<br/><br/>
+                
+                <i>This report contains all visualizations generated during the School-Based Distribution (SBD) analysis, 
+                with each chart presented on a separate page for optimal viewing and printing.</i>
+                """
+                
+                story.append(Paragraph(final_summary, normal_style))
+                
+                # Build PDF
+                doc.build(story)
+                
+                # Clean up temporary files
+                for temp_file in temp_image_files.values():
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+                os.rmdir(temp_dir)
+                
+                # Get PDF data
+                pdf_data = pdf_buffer.getvalue()
+                
+                # Success message with chart count
+                st.success(f"✅ PDF report generated successfully with {chart_counter} charts (one per page)!")
+                
+                # Display chart breakdown
+                st.info(f"""
+                **📊 PDF Report Contents:**
+                - **Total Pages:** {chart_counter + 2} (Title + {chart_counter} Charts + Summary)
+                - **One chart per page** with descriptive titles
+                - **Normal-sized charts** (7" × 5") for optimal viewing
+                - **High-quality images** at 300 DPI resolution
+                """)
+                
+                # Download button for PDF
+                st.download_button(
+                    label="💾 Download PDF Report (One Chart Per Page)",
+                    data=pdf_data,
+                    file_name=f"SBD_Complete_Report_{chart_counter}_Charts_{current_datetime.strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    help=f"Download comprehensive PDF report with {chart_counter} charts, each on a separate page"
+                )
+                
+            except ImportError:
+                st.error("❌ PDF generation requires reportlab library. Please install it using: pip install reportlab")
+            except Exception as e:
+                st.error(f"❌ Error generating PDF: {str(e)}")
+
+    with download_col4:
+        # Word Report Download
+        if st.button("📋 Generate Comprehensive Word Report", help="Generate and download comprehensive report with all maps and summaries in Word format"):
+            try:
+                # Generate Word report content
+                from docx import Document
+                from docx.shared import Inches, Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+                from docx.enum.table import WD_TABLE_ALIGNMENT
+                from datetime import datetime
+                
+                doc = Document()
+                
+                # Add logos to header (if available)
+                try:
+                    # Create header section with logos
+                    header_para = doc.add_paragraph()
+                    header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    
+                    # Try to add logos
+                    try:
+                        logo_run1 = header_para.add_run()
+                        logo_run1.add_picture("NMCP.png", width=Inches(1.5))
+                        header_para.add_run("    ")  # Space between logos
+                    except:
+                        header_para.add_run("NMCP    ")
+                    
+                    try:
+                        logo_run2 = header_para.add_run()
+                        logo_run2.add_picture("icf_sl.png", width=Inches(1.5))
+                        header_para.add_run("    ")  # Space between logos
+                    except:
+                        header_para.add_run("ICF Sierra Leone    ")
+                    
+                    try:
+                        logo_run3 = header_para.add_run()
+                        logo_run3.add_picture("pmi.png", width=Inches(1.5))
+                        header_para.add_run("    ")  # Space between logos
+                    except:
+                        header_para.add_run("PMI Evolve    ")
+                    
+                    try:
+                        logo_run4 = header_para.add_run()
+                        logo_run4.add_picture("abt.png", width=Inches(1.5))
+                    except:
+                        header_para.add_run("Abt Associates")
+                    
+                    doc.add_paragraph()  # Add space after logos
+                except:
+                    # If logos fail, add text headers
+                    header_para = doc.add_paragraph()
+                    header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    header_run = header_para.add_run("NMCP | ICF Sierra Leone | PMI Evolve | Abt Associates")
+                    header_run.font.size = Pt(12)
+                    header_run.bold = True
+                
+                # Add title page
+                title = doc.add_heading('School-Based Distribution (SBD)', 0)
+                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                subtitle = doc.add_heading('Comprehensive Analysis Report with Enhanced GPS Maps and Summaries', level=1)
+                subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add date and time
+                current_datetime = datetime.now()
+                date_para = doc.add_paragraph()
+                date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                date_run = date_para.add_run(f"Generated on: {current_datetime.strftime('%B %d, %Y at %I:%M %p')}")
+                date_run.font.size = Pt(12)
+                date_run.bold = True
+                
+                # Add page break
+                doc.add_page_break()
+                
+                # Add executive summary
+                doc.add_heading('Executive Summary', level=1)
+                
+                summary_text = f"""
+                This comprehensive report presents the analysis of School-Based Distribution (SBD) data collected across Sierra Leone, 
+                covering {summaries['overall']['total_districts']} districts and {summaries['overall']['total_chiefdoms']} chiefdoms with a total of {summaries['overall']['total_schools']} school records.
+                
+                KEY FINDINGS:
+                • Total Schools Surveyed: {summaries['overall']['total_schools']:,}
+                • Districts Covered: {summaries['overall']['total_districts']}
+                • Chiefdoms Covered: {summaries['overall']['total_chiefdoms']}
+                • Total Student Enrollment: {summaries['overall']['total_enrollment']:,}
+                • Total Boys: {summaries['overall']['total_boys']:,}
+                • Total Girls: {summaries['overall']['total_girls']:,}
+                • Gender Ratio (Girls:Boys): {(summaries['overall']['total_girls']/summaries['overall']['total_boys']*100) if summaries['overall']['total_boys'] > 0 else 0:.1f}%
+                • Total ITNs Distributed: {summaries['overall']['total_itn']:,}
+                • Overall Coverage Rate: {summaries['overall']['coverage']:.1f}%
+                
+                This report provides detailed analysis of enrollment patterns, gender distribution, ITN distribution effectiveness, 
+                and geographic coverage across administrative boundaries with comprehensive maps and enhanced GPS visualizations.
+                """
+                doc.add_paragraph(summary_text)
+                
+                # Add geographic maps section
+                doc.add_heading('Enhanced Geographic Distribution Maps with Complete GPS Coverage', level=1)
+                
+                # Add Overall Sierra Leone map with complete GPS
+                if 'sierra_leone_complete_gps' in map_images:
+                    doc.add_heading('Sierra Leone - Complete GPS Overview', level=2)
+                    doc.add_paragraph("Complete overview of school distribution with GPS coordinates across all districts in Sierra Leone:")
+                    chart_para = doc.add_paragraph()
+                    chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    chart_run = chart_para.add_run()
+                    map_images['sierra_leone_complete_gps'].seek(0)
+                    chart_run.add_picture(map_images['sierra_leone_complete_gps'], width=Inches(6.5))
+                    doc.add_paragraph()  # Add spacing
+                
+                # Add Enhanced District Maps with GPS coordinates
+                doc.add_heading('Enhanced District Maps with Complete GPS Coverage', level=2)
+                doc.add_paragraph("Enhanced collection of all district maps showing chiefdoms and school GPS locations with improved visualization:")
+                
+                # Get all unique districts and create enhanced maps for each
+                all_districts = sorted(extracted_df['District'].dropna().unique())
+                
+                # Add all enhanced district GPS maps
+                for district in all_districts:
+                    district_enhanced_key = f'{district}_enhanced_gps'
+                    if district_enhanced_key in map_images:
+                        doc.add_heading(f'{district} District - Enhanced GPS Mapping', level=3)
+                        doc.add_paragraph(f"Enhanced geographic distribution of schools and chiefdoms in {district} District with complete GPS coordinate coverage:")
+                        chart_para = doc.add_paragraph()
+                        chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        chart_run = chart_para.add_run()
+                        map_images[district_enhanced_key].seek(0)
+                        chart_run.add_picture(map_images[district_enhanced_key], width=Inches(6))
+                        doc.add_paragraph()  # Add spacing
+                
+                # Add page break before charts
+                doc.add_page_break()
+                
+                # Add overall summary charts
+                doc.add_heading('Overall Analysis Charts', level=1)
+                
+                # Add enhanced enrollment analysis chart
+                if 'enhanced_enrollment_analysis' in map_images:
+                    doc.add_heading('Enhanced Enrollment vs ITN Distribution Analysis', level=2)
+                    doc.add_paragraph("Comprehensive analysis showing total enrollment, ITNs distributed (boys + girls), and remaining ITNs needed across districts:")
+                    chart_para = doc.add_paragraph()
+                    chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    chart_run = chart_para.add_run()
+                    map_images['enhanced_enrollment_analysis'].seek(0)
+                    chart_run.add_picture(map_images['enhanced_enrollment_analysis'], width=Inches(6.5))
+                    doc.add_paragraph()  # Add spacing
+                
+                # Add overall distribution pie chart
+                if 'overall_distribution_pie' in map_images:
+                    doc.add_heading('Overall ITN Distribution Status', level=2)
+                    doc.add_paragraph("Overall distribution status showing the proportion of students who have received ITNs versus those still waiting:")
+                    chart_para = doc.add_paragraph()
+                    chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    chart_run = chart_para.add_run()
+                    map_images['overall_distribution_pie'].seek(0)
+                    chart_run.add_picture(map_images['overall_distribution_pie'], width=Inches(5.5))
+                    doc.add_paragraph()  # Add spacing
+                
+                # Add gender analysis charts
+                if 'gender_overall' in map_images:
+                    doc.add_heading('Gender Distribution Analysis', level=2)
+                    doc.add_paragraph("Overall gender distribution showing boys and girls across all schools:")
+                    chart_para = doc.add_paragraph()
+                    chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    chart_run = chart_para.add_run()
+                    map_images['gender_overall'].seek(0)
+                    chart_run.add_picture(map_images['gender_overall'], width=Inches(5.5))
+                    doc.add_paragraph()  # Add spacing
+                
+                if 'gender_district' in map_images:
+                    doc.add_heading('Gender Distribution by District', level=3)
+                    doc.add_paragraph("Comparison of boys and girls enrollment across all districts:")
+                    chart_para = doc.add_paragraph()
+                    chart_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    chart_run = chart_para.add_run()
+                    map_images['gender_district'].seek(0)
+                    chart_run.add_picture(map_images['gender_district'], width=Inches(6.5))
+                    doc.add_paragraph()  # Add spacing
+                
+                # Close matplotlib figures to free memory
+                plt.close('all')
+                
+                # Save to BytesIO
+                word_buffer = BytesIO()
+                doc.save(word_buffer)
+                word_data = word_buffer.getvalue()
+                
+                # Success message
+                st.success("✅ Comprehensive Word report generated successfully with enhanced GPS maps and summaries!")
+                
+                st.download_button(
+                    label="💾 Download Complete Report with Enhanced GPS Maps & Summaries",
+                    data=word_data,
+                    file_name=f"SBD_Enhanced_GPS_Report_{current_datetime.strftime('%Y%m%d_%H%M')}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    help="Download comprehensive report with enhanced GPS maps, district/chiefdom/gender summaries, charts, and analysis in Word format"
+                )
+                
+            except ImportError:
+                st.error("❌ Word report generation requires python-docx library. Please install it using: pip install python-docx")
+            except Exception as e:
+                st.error(f"❌ Error generating Word report: {str(e)}")
+
+    # Display final summary
+    st.info(f"📋 **Dataset Summary**: {len(extracted_df)} total records processed with comprehensive district, chiefdom, and gender analysis")
+    
+    # Display map files saved notification
+    if map_images:
+        st.success(f"✅ **Enhanced GPS Maps Saved**: {len(map_images)} visualization maps have been saved as PNG files with complete GPS coverage")
+        
+        # Show list of saved maps
+        with st.expander("📁 View Saved Enhanced GPS Map Files"):
+            for map_name in map_images.keys():
+                st.write(f"• {map_name}.png")
+    
+    # Save map files notification
+    if map_images:
+        with st.expander("📁 View All Saved Map Files Details"):
+            st.write("**Enhanced GPS Maps:**")
+            gps_maps = [k for k in map_images.keys() if 'gps' in k.lower()]
+            for map_name in gps_maps:
+                st.write(f"• {map_name}.png - Enhanced GPS visualization")
+            
+            st.write("**Analysis Charts:**")
+            analysis_charts = [k for k in map_images.keys() if any(x in k.lower() for x in ['enhanced', 'overall', 'gender', 'pie'])]
+            for map_name in analysis_charts:
+                st.write(f"• {map_name}.png - Data analysis chart")
+            
+            st.write("**District/Chiefdom Charts:**")
+            district_charts = [k for k in map_images.keys() if k.endswith(('_enrollment', '_itn', '_coverage'))]
+            for map_name in district_charts:
+                st.write(f"• {map_name}.png - District/chiefdom analysis")
