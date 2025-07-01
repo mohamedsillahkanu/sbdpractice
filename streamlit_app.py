@@ -379,7 +379,7 @@ st.markdown("**Comprehensive view of all chiefdoms with GPS school locations**")
 
 # Load the data
 try:
-    df_original = pd.read_excel("GMB253374_SBD_ITN_clean.xlsx")
+    df_original = pd.read_excel("sbd first_submission_clean.xlsx")
     
     # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
@@ -763,7 +763,7 @@ def extract_itn_data_from_excel(df):
         
         total_enrollment.append(enrollment_total)
         
-        # Calculate total ITNs distributed (boys + girls only)
+        # Calculate total ITNs distributed (boys + girls only) - NO left at school for now
         itns_distributed = 0
         for class_num in range(1, 6):  # Classes 1-5
             # ITNs distributed (boys + girls)
@@ -780,15 +780,15 @@ def extract_itn_data_from_excel(df):
                 if pd.notna(girls_itns):
                     itns_distributed += int(girls_itns)
         
-        # Calculate total ITNs (distributed + left at school)
+        # For now, total ITNs = distributed ITNs (until we verify the "left at school" column)
         itns_total = itns_distributed
-        for class_num in range(1, 6):  # Classes 1-5
-            # ITNs left at school for absent pupils - using correct column name
-            left_col = "ITNs left at the school for pupils who were absent."
-            if left_col in df.columns:
-                left_itns = df[left_col].iloc[idx]
-                if pd.notna(left_itns):
-                    itns_total += int(left_itns)
+        
+        # TODO: Add left at school when column name is verified
+        # left_col = "ITNs left at the school for pupils who were absent."
+        # if left_col in df.columns:
+        #     left_itns = df[left_col].iloc[idx]
+        #     if pd.notna(left_itns):
+        #         itns_total += int(left_itns)
         
         total_itns.append(itns_total)
         distributed_itns.append(itns_distributed)
@@ -1760,6 +1760,14 @@ with logo_col4:
     except:
         st.write("❌ Logo 4 file not found")
 
+# Example paths info
+st.info("""
+💡 **Example file paths:**
+- `NMCP.png` (same directory as app)
+- `logos/organization1.png` (subfolder)
+- `C:/path/to/logo.png` (absolute path)
+- `./assets/logo.jpg` (relative path)
+""")
 
 # Update logo configuration in session state
 st.session_state.logos = {
