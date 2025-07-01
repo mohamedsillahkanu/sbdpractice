@@ -319,7 +319,7 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
     
     # Optimize layout for Word document
     plt.tight_layout()
-    plt.subplots_adjust(top=0.95, hspace=0.35, wspace=0.25)
+    plt.subplots_adjust(top=0.90, hspace=0.35, wspace=0.25)  # Increased space below title
     
     return fig
 
