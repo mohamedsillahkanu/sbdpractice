@@ -726,7 +726,7 @@ st.header("🛡️ Section 3: ITN Coverage Analysis")
 def extract_itn_data_from_excel(df):
     """Extract ITN coverage data from the Excel file"""
     # Create empty lists to store extracted data
-    districts, chiefdoms, total_enrollment, total_itns = [], [], [], []
+    districts, chiefdoms, total_enrollment, total_itns, distributed_itns = [], [], [], [], []
     
     # Get chiefdom mapping
     chiefdom_mapping = create_chiefdom_mapping()
@@ -763,8 +763,8 @@ def extract_itn_data_from_excel(df):
         
         total_enrollment.append(enrollment_total)
         
-        # Calculate total ITNs (distributed + left at school)
-        itns_total = 0
+        # Calculate total ITNs distributed (boys + girls only)
+        itns_distributed = 0
         for class_num in range(1, 6):  # Classes 1-5
             # ITNs distributed (boys + girls)
             boys_col = f"How many boys in Class {class_num} received ITNs?"
@@ -773,13 +773,16 @@ def extract_itn_data_from_excel(df):
             if boys_col in df.columns:
                 boys_itns = df[boys_col].iloc[idx]
                 if pd.notna(boys_itns):
-                    itns_total += int(boys_itns)
+                    itns_distributed += int(boys_itns)
             
             if girls_col in df.columns:
                 girls_itns = df[girls_col].iloc[idx]
                 if pd.notna(girls_itns):
-                    itns_total += int(girls_itns)
-            
+                    itns_distributed += int(girls_itns)
+        
+        # Calculate total ITNs (distributed + left at school)
+        itns_total = itns_distributed
+        for class_num in range(1, 6):  # Classes 1-5
             # ITNs left at school for absent pupils
             left_col = f"How many ITNs were left at the school for pupils who were absent in Class {class_num}?"
             if left_col in df.columns:
@@ -788,13 +791,15 @@ def extract_itn_data_from_excel(df):
                     itns_total += int(left_itns)
         
         total_itns.append(itns_total)
+        distributed_itns.append(itns_distributed)
     
     # Create a new DataFrame with extracted values
     itn_df = pd.DataFrame({
         "District": districts,
         "Chiefdom": chiefdoms,
         "Total_Enrollment": total_enrollment,
-        "Total_ITNs": total_itns
+        "Total_ITNs": total_itns,
+        "Distributed_ITNs": distributed_itns
     })
     
     return itn_df
@@ -967,6 +972,184 @@ with st.spinner("Generating BOMBALI District ITN coverage dashboard..."):
             st.warning("Could not generate BOMBALI District ITN coverage dashboard")
     except Exception as e:
         st.error(f"Error generating BOMBALI District ITN coverage dashboard: {e}")
+
+# Section 4: Summary of Key Findings
+st.header("📋 Section 4: Summary of Key Findings")
+
+def generate_key_summary(extracted_df, itn_df):
+    """Generate summary of key findings across all sections"""
+    
+    summary = {}
+    
+    # Overall statistics
+    total_schools = len(extracted_df)
+    total_districts = len(extracted_df['District'].dropna().unique())
+    total_gps_records = len(extracted_df[extracted_df['GPS_Location'].notna()])
+    
+    # District breakdown
+    bo_schools = len(extracted_df[extracted_df['District'].str.upper() == 'BO'])
+    bombali_schools = len(extracted_df[extracted_df['District'].str.upper() == 'BOMBALI'])
+    
+    # GPS coverage
+    gps_coverage = (total_gps_records / total_schools * 100) if total_schools > 0 else 0
+    
+    # ITN statistics from itn_df
+    total_enrollment = int(itn_df['Total_Enrollment'].sum())
+    total_itns_distributed = int(itn_df['Distributed_ITNs'].sum())
+    total_itns_available = int(itn_df['Total_ITNs'].sum())
+    
+    # Coverage calculations
+    enrollment_coverage = (total_itns_distributed / total_enrollment * 100) if total_enrollment > 0 else 0
+    distribution_efficiency = (total_itns_distributed / total_itns_available * 100) if total_itns_available > 0 else 0
+    
+    # School coverage analysis (using real target data)
+    target_data = generate_target_school_data([])  # Get all target data
+    total_target_schools = sum(target_data.values())
+    school_coverage = (total_schools / total_target_schools * 100) if total_target_schools > 0 else 0
+    
+    summary = {
+        'total_schools': total_schools,
+        'total_districts': total_districts,
+        'bo_schools': bo_schools,
+        'bombali_schools': bombali_schools,
+        'gps_coverage': gps_coverage,
+        'total_enrollment': total_enrollment,
+        'total_itns_distributed': total_itns_distributed,
+        'total_itns_available': total_itns_available,
+        'enrollment_coverage': enrollment_coverage,
+        'distribution_efficiency': distribution_efficiency,
+        'total_target_schools': total_target_schools,
+        'school_coverage': school_coverage
+    }
+    
+    return summary
+
+# Generate and display summary
+try:
+    key_summary = generate_key_summary(extracted_df, itn_df)
+    
+    # Key Metrics Display
+    st.subheader("📊 Key Metrics Overview")
+    
+    # Row 1: Basic counts
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Schools Surveyed", f"{key_summary['total_schools']:,}")
+    with col2:
+        st.metric("Districts Covered", f"{key_summary['total_districts']}")
+    with col3:
+        st.metric("BO District Schools", f"{key_summary['bo_schools']:,}")
+    with col4:
+        st.metric("BOMBALI District Schools", f"{key_summary['bombali_schools']:,}")
+    
+    # Row 2: Coverage metrics
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        st.metric("GPS Coverage", f"{key_summary['gps_coverage']:.1f}%")
+    with col6:
+        st.metric("School Survey Coverage", f"{key_summary['school_coverage']:.1f}%")
+    with col7:
+        st.metric("ITN Enrollment Coverage", f"{key_summary['enrollment_coverage']:.1f}%")
+    with col8:
+        st.metric("ITN Distribution Efficiency", f"{key_summary['distribution_efficiency']:.1f}%")
+    
+    # Row 3: ITN statistics
+    col9, col10, col11, col12 = st.columns(4)
+    with col9:
+        st.metric("Total Student Enrollment", f"{key_summary['total_enrollment']:,}")
+    with col10:
+        st.metric("ITNs Distributed", f"{key_summary['total_itns_distributed']:,}")
+    with col11:
+        st.metric("Total ITNs Available", f"{key_summary['total_itns_available']:,}")
+    with col12:
+        st.metric("Target Schools", f"{key_summary['total_target_schools']:,}")
+    
+    # Summary Insights
+    st.subheader("🔍 Key Insights")
+    
+    insights_col1, insights_col2 = st.columns(2)
+    
+    with insights_col1:
+        st.markdown("### 📍 Geographic Coverage")
+        st.write(f"• **{key_summary['gps_coverage']:.1f}%** of schools have GPS coordinates")
+        st.write(f"• **{key_summary['school_coverage']:.1f}%** of target schools surveyed")
+        st.write(f"• **{key_summary['total_schools']:,}** schools across **{key_summary['total_districts']}** districts")
+        
+        if key_summary['gps_coverage'] >= 80:
+            st.success("✅ Excellent GPS coverage")
+        elif key_summary['gps_coverage'] >= 60:
+            st.warning("⚠️ Good GPS coverage")
+        else:
+            st.error("❌ Poor GPS coverage - needs improvement")
+    
+    with insights_col2:
+        st.markdown("### 🛡️ ITN Distribution")
+        st.write(f"• **{key_summary['enrollment_coverage']:.1f}%** enrollment coverage")
+        st.write(f"• **{key_summary['distribution_efficiency']:.1f}%** distribution efficiency")
+        st.write(f"• **{key_summary['total_itns_distributed']:,}** ITNs distributed to students")
+        
+        if key_summary['enrollment_coverage'] >= 80:
+            st.success("✅ Excellent ITN coverage")
+        elif key_summary['enrollment_coverage'] >= 60:
+            st.warning("⚠️ Good ITN coverage")
+        else:
+            st.error("❌ Poor ITN coverage - needs improvement")
+    
+    # District Comparison
+    st.subheader("⚖️ District Comparison")
+    
+    # Calculate district-specific metrics
+    bo_data = extracted_df[extracted_df['District'].str.upper() == 'BO']
+    bombali_data = extracted_df[extracted_df['District'].str.upper() == 'BOMBALI']
+    
+    bo_gps_coverage = (len(bo_data[bo_data['GPS_Location'].notna()]) / len(bo_data) * 100) if len(bo_data) > 0 else 0
+    bombali_gps_coverage = (len(bombali_data[bombali_data['GPS_Location'].notna()]) / len(bombali_data) * 100) if len(bombali_data) > 0 else 0
+    
+    # District comparison table
+    comparison_data = {
+        'Metric': ['Schools Surveyed', 'GPS Coverage (%)', 'Target Schools', 'Survey Coverage (%)'],
+        'BO District': [
+            f"{key_summary['bo_schools']:,}",
+            f"{bo_gps_coverage:.1f}%", 
+            f"{sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BADJIA', 'BAGBWE', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE'])]):,}",
+            f"{(key_summary['bo_schools'] / sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BADJIA', 'BAGBWE', 'BOAMA', 'BAGBO', 'BO TOWN', 'BONGOR', 'BUMPE NGAO', 'GBO', 'JAIAMA', 'KAKUA', 'KOMBOYA', 'LUGBU', 'NIAWA LENGA', 'SELENGA', 'TIKONKO', 'VALUNIA', 'WONDE'])]) * 100):.1f}%"
+        ],
+        'BOMBALI District': [
+            f"{key_summary['bombali_schools']:,}",
+            f"{bombali_gps_coverage:.1f}%",
+            f"{sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA'])]):,}",
+            f"{(key_summary['bombali_schools'] / sum([v for k, v in generate_target_school_data([]).items() if any(chiefdom in k for chiefdom in ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBENDEMBU', 'KAMARANKA', 'MAGBAIMBA NDORWAHUN', 'MAKARI', 'MAKENI CITY', 'MARA', 'N\'GOWAHUN', 'PAKI MASABONG', 'SAFROKO LIMBA'])]) * 100):.1f}%"
+        ]
+    }
+    
+    comparison_df = pd.DataFrame(comparison_data)
+    st.dataframe(comparison_df, use_container_width=True)
+    
+    # Action Items
+    st.subheader("🎯 Recommended Actions")
+    
+    action_col1, action_col2 = st.columns(2)
+    
+    with action_col1:
+        st.markdown("### 📈 Improve Coverage")
+        if key_summary['school_coverage'] < 80:
+            st.write("• Increase school survey efforts in under-covered chiefdoms")
+        if key_summary['gps_coverage'] < 90:
+            st.write("• Collect GPS coordinates for remaining schools")
+        st.write("• Focus on chiefdoms with red/orange coverage indicators")
+        st.write("• Prioritize high-enrollment areas")
+    
+    with action_col2:
+        st.markdown("### 🛡️ Enhance ITN Distribution")
+        if key_summary['enrollment_coverage'] < 80:
+            st.write("• Increase ITN distribution in low-coverage areas")
+        if key_summary['distribution_efficiency'] < 90:
+            st.write("• Improve distribution of available ITNs")
+        st.write("• Target schools with high enrollment but low ITN coverage")
+        st.write("• Ensure absent students receive ITNs")
+    
+except Exception as e:
+    st.error(f"Error generating summary: {e}")
 
 # Raw data preview
 if st.checkbox("Show raw data preview"):
