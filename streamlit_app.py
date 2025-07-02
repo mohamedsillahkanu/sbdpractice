@@ -58,7 +58,7 @@ def create_chiefdom_mapping():
         "Lugbu": "LUGBU",
         "Niawa Lenga": "NIAWA LENGA",
         "Selenga": "SELENGA",
-        "Tikonko": "TIKONKO",
+        "Tinkoko": "TIKONKO",
         "Valunia": "VALUNIA",
         "Wonde": "WONDE",
         
