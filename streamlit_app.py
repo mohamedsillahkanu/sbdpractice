@@ -50,7 +50,7 @@ def create_chiefdom_mapping():
         "Bagbwe": "BAGBWE(BAGBE)",
         "Baoma": "BOAMA",
         "Bongor": "BONGOR",
-        "Bumpe Ngao": "BUMPE NGAO",
+        "Bumpeh": "BUMPE NGAO",
         "Gbo": "GBO",
         "Jaiama": "JAIAMA",
         "Kakua": "KAKUA",
