@@ -347,7 +347,7 @@ st.info("""
 # Load the embedded data files
 try:
     # Load Excel file (embedded)
-    df_original = pd.read_excel("sbd_1019.xlsx")
+    df_original = pd.read_excel("sbd_1019 (1).xlsx")
     
     # Extract GPS data with chiefdom mapping
     extracted_df = extract_gps_data_from_excel(df_original)
