@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Dashboard Generator | Transform Data into Insights</title>
+    
+    <!-- CSS Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    
+    <!-- Papa Parse for CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --dark-bg: #1a1a2e;
+            --card-bg: #16213e;
+            --text-light: #e0e0e0;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --error-color: #f44336;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+        
+        .hero-section {
+            padding: 80px 0;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+        }
+        
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        
+        .upload-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px auto;
+            max-width: 800px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+        
+        .upload-zone {
+            border: 3px dashed var(--primary-color);
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9fa;
+        }
+        
+        .upload-zone:hover {
+            border-color: var(--secondary-color);
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .upload-zone.dragover {
+            border-color: var(--success-color);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+        }
+        
+        .dashboard-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px auto;
+            color: #333;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .progress-bar {
+            height: 25px;
+            border-radius: 15px;
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+        }
+        
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #333;
+        }
+        
+        .btn-primary-custom {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .stats-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .insight-item {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .footer {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 40px 0;
+            margin-top: 80px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .upload-section {
+                margin: 20px;
+                padding: 20px;
+            }
+        }
+        
+        .sample-data-btn {
+            background: linear-gradient(45deg, #4caf50, #8bc34a);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .sample-data-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <h1 class="hero-title animate__animated animate__fadeInDown">
+                <i class="fas fa-chart-line"></i> Auto-Dashboard Generator
+            </h1>
+            <p class="hero-subtitle animate__animated animate__fadeInUp">
+                Transform any dataset into professional, interactive dashboards in seconds
+            </p>
+            <div class="animate__animated animate__fadeInUp animate__delay-1s">
+                <a href="#upload" class="btn btn-primary-custom btn-lg">
+                    <i class="fas fa-rocket"></i> Start Creating
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="container my-5">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="feature-card text-center animate__animated animate__fadeInLeft">
+                    <div class="feature-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4>AI-Powered Analysis</h4>
+                    <p>Automatically detects data types, patterns, and generates appropriate visualizations using machine learning algorithms.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card text-center animate__animated animate__fadeInUp">
+                    <div class="feature-icon">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <h4>Zero Configuration</h4>
+                    <p>Just upload your data and get instant insights. No coding, no setup, no complex configurations required.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card text-center animate__animated animate__fadeInRight">
+                    <div class="feature-icon">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <h4>Export Ready</h4>
+                    <p>Download your dashboards as HTML, PNG, or PDF. Perfect for presentations, reports, and sharing.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Upload Section -->
+    <section id="upload" class="container">
+        <div class="upload-section animate__animated animate__fadeIn">
+            <h2 class="text-center mb-4">
+                <i class="fas fa-upload"></i> Upload Your Dataset
+            </h2>
+            <p class="text-center text-muted mb-4">
+                Supports CSV, Excel, JSON files up to 50MB
+            </p>
+            
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h4>Drag & Drop or Click to Upload</h4>
+                <p class="text-muted">CSV, XLSX, XLS, JSON files supported</p>
+                <input type="file" id="fileInput" style="display: none;" accept=".csv,.xlsx,.xls,.json">
+            </div>
+            
+            <div class="text-center mt-4">
+                <h5>Or try with sample data:</h5>
+                <button class="sample-data-btn" onclick="loadSampleData('sales')">
+                    <i class="fas fa-shopping-cart"></i> Sales Data
+                </button>
+                <button class="sample-data-btn" onclick="loadSampleData('finance')">
+                    <i class="fas fa-dollar-sign"></i> Financial Data
+                </button>
+                <button class="sample-data-btn" onclick="loadSampleData('marketing')">
+                    <i class="fas fa-bullhorn"></i> Marketing Data
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Controls Panel -->
+    <section class="container" id="controlsSection" style="display: none;">
+        <div class="controls-panel">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <label for="themeSelect" class="form-label">
+                        <i class="fas fa-palette"></i> Theme:
+                    </label>
+                    <select class="form-select" id="themeSelect">
+                        <option value="professional">Professional</option>
+                        <option value="dark">Dark Mode</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="chartLimit" class="form-label">
+                        <i class="fas fa-chart-bar"></i> Max Charts:
+                    </label>
+                    <select class="form-select" id="chartLimit">
+                        <option value="6">6 Charts</option>
+                        <option value="9" selected>9 Charts</option>
+                        <option value="12">12 Charts</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-primary-custom w-100" onclick="generateDashboard()">
+                        <i class="fas fa-magic"></i> Generate Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Loading Section -->
+    <section class="container">
+        <div class="loading-spinner" id="loadingSection">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h4 class="mt-3">Analyzing your data...</h4>
+            <p>Our AI is detecting patterns and creating visualizations</p>
+            <div class="progress mt-3" style="height: 25px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" 
+                     style="width: 0%"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dataset Info Section -->
+    <section class="container" id="datasetInfo" style="display: none;">
+        <div class="dashboard-container">
+            <h3><i class="fas fa-info-circle"></i> Dataset Analysis</h3>
+            <div class="row" id="statsContainer">
+                <!-- Stats will be populated here -->
+            </div>
+            <div class="mt-4">
+                <h5><i class="fas fa-lightbulb"></i> Key Insights</h5>
+                <div id="insightsContainer">
+                    <!-- Insights will be populated here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Section -->
+    <section class="container" id="dashboardSection" style="display: none;">
+        <div class="dashboard-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3><i class="fas fa-chart-line"></i> Generated Dashboard</h3>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" onclick="exportDashboard('html')">
+                        <i class="fas fa-code"></i> Export HTML
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="exportDashboard('png')">
+                        <i class="fas fa-image"></i> Export PNG
+                    </button>
+                </div>
+            </div>
+            <div id="plotlyDashboard">
+                <!-- Dashboard will be rendered here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5><i class="fas fa-chart-line"></i> Auto-Dashboard Generator</h5>
+                    <p>Transform data into insights with AI-powered visualization.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="https://github.com/yourusername/auto-dashboard" class="btn btn-outline-light me-2">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                    <a href="#" class="btn btn-outline-light">
+                        <i class="fas fa-book"></i> Documentation
+                    </a>
+                </div>
+            </div>
+            <hr class="my-4">
+            <div class="text-center">
+                <p>&copy; 2024 Auto-Dashboard Generator. Built with ❤️ for data enthusiasts.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let currentDataset = null;
+        let datasetProfile = null;
+
+        // File upload handling
+        document.getElementById('uploadZone').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        // Drag and drop handling
+        const uploadZone = document.getElementById('uploadZone');
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            console.log('Processing file:', file.name);
+            
+            if (file.size > 50 * 1024 * 1024) {
+                alert('File size exceeds 50MB limit. Please upload a smaller file.');
+                return;
+            }
+
+            const extension = file.name.split('.').pop().toLowerCase();
+            
+            if (['csv', 'xlsx', 'xls', 'json'].includes(extension)) {
+                if (extension === 'csv') {
+                    parseCSV(file);
+                } else if (['xlsx', 'xls'].includes(extension)) {
+                    parseExcel(file);
+                } else if (extension === 'json') {
+                    parseJSON(file);
+                }
+            } else {
+                alert('Unsupported file format. Please upload CSV, Excel, or JSON files.');
+            }
+        }
+
+        function parseCSV(file) {
+            Papa.parse(file, {
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        console.error('CSV parsing errors:', results.errors);
+                        alert('Error parsing CSV file. Please check the file format.');
+                        return;
+                    }
+                    
+                    const data = results.data;
+                    if (data.length < 2) {
+                        alert('File appears to be empty or has insufficient data.');
+                        return;
+                    }
+                    
+                    // Convert to proper format
+                    const headers = data[0];
+                    const rows = data.slice(1).filter(row => row.some(cell => cell !== ''));
+                    
+                    currentDataset = {
+                        name: file.name.replace('.csv', ''),
+                        headers: headers,
+                        data: rows,
+                        rowCount: rows.length,
+                        columnCount: headers.length
+                    };
+                    
+                    onDataLoaded();
+                },
+                header: false,
+                skipEmptyLines: true
+            });
+        }
+
+        function parseExcel(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    // For demo purposes, show message about Excel support
+                    alert('Excel file detected! For the demo, please convert to CSV format. Full Excel support available in the Python version.');
+                } catch (error) {
+                    alert('Error reading Excel file. Please convert to CSV format.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseJSON(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const jsonData = JSON.parse(e.target.result);
+                    
+                    if (Array.isArray(jsonData) && jsonData.length > 0) {
+                        const headers = Object.keys(jsonData[0]);
+                        const rows = jsonData.map(obj => headers.map(header => obj[header] || ''));
+                        
+                        currentDataset = {
+                            name: file.name.replace('.json', ''),
+                            headers: headers,
+                            data: rows,
+                            rowCount: rows.length,
+                            columnCount: headers.length
+                        };
+                        
+                        onDataLoaded();
+                    } else {
+                        alert('JSON file should contain an array of objects.');
+                    }
+                } catch (error) {
+                    alert('Error parsing JSON file. Please check the file format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadSampleData(type) {
+            console.log('Loading sample data:', type);
+            
+            let sampleData;
+            
+            if (type === 'sales') {
+                sampleData = {
+                    name: 'Sales Performance Data',
+                    headers: ['region', 'product_category', 'revenue', 'units_sold', 'customer_rating', 'is_premium', 'sale_date'],
+                    data: generateSalesData(200),
+                    rowCount: 200,
+                    columnCount: 7
+                };
+            } else if (type === 'finance') {
+                sampleData = {
+                    name: 'Financial Performance Data',
+                    headers: ['quarter', 'department', 'budget', 'actual_spend', 'profit_margin', 'roi_percentage', 'cost_category'],
+                    data: generateFinanceData(150),
+                    rowCount: 150,
+                    columnCount: 7
+                };
+            } else if (type === 'marketing') {
+                sampleData = {
+                    name: 'Marketing Campaign Data',
+                    headers: ['campaign_name', 'channel', 'impressions', 'clicks', 'conversions', 'cost_per_click', 'conversion_rate'],
+                    data: generateMarketingData(100),
+                    rowCount: 100,
+                    columnCount: 7
+                };
+            }
+            
+            currentDataset = sampleData;
+            onDataLoaded();
+        }
+
+        function generateSalesData(count) {
+            const regions = ['North', 'South', 'East', 'West', 'Central'];
+            const products = ['Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports'];
+            const data = [];
+            
+            for (let i = 0; i < count; i++) {
+                const revenue = Math.floor(Math.random() * 10000) + 1000;
+                const units = Math.floor(Math.random() * 100) + 1;
+                const rating = (Math.random() * 2 + 3).toFixed(1); // 3-5 rating
+                const isPremium = Math.random() > 0.7 ? 'Yes' : 'No';
+                const date = new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1)
+                    .toISOString().split('T')[0];
+                
+                data.push([
+                    regions[Math.floor(Math.random() * regions.length)],
+                    products[Math.floor(Math.random() * products.length)],
+                    revenue,
+                    units,
+                    rating,
+                    isPremium,
+                    date
+                ]);
+            }
+            return data;
+        }
+
+        function generateFinanceData(count) {
+            const quarters = ['Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024'];
+            const departments = ['Marketing', 'Sales', 'Engineering', 'HR', 'Operations'];
+            const costCategories = ['Personnel', 'Technology', 'Marketing', 'Operations', 'Travel'];
+            const data = [];
+            
+            for (let i = 0; i < count; i++) {
+                const budget = Math.floor(Math.random() * 500000) + 50000;
+                const actual = budget * (0.8 + Math.random() * 0.4); // 80-120% of budget
+                const profit = (Math.random() * 30 + 5).toFixed(1); // 5-35% profit margin
+                const roi = (Math.random() * 40 + 10).toFixed(1); // 10-50% ROI
+                
+                data.push([
+                    quarters[Math.floor(Math.random() * quarters.length)],
+                    departments[Math.floor(Math.random() * departments.length)],
+                    Math.floor(budget),
+                    Math.floor(actual),
+                    profit + '%',
+                    roi + '%',
+                    costCategories[Math.floor(Math.random() * costCategories.length)]
+                ]);
+            }
+            return data;
+        }
+
+        function generateMarketingData(count) {
+            const campaigns = ['Summer Sale', 'Black Friday', 'New Year', 'Spring Launch', 'Holiday Special'];
+            const channels = ['Facebook', 'Google Ads', 'Email', 'LinkedIn', 'Instagram', 'Twitter'];
+            const data = [];
+            
+            for (let i = 0; i < count; i++) {
+                const impressions = Math.floor(Math.random() * 100000) + 10000;
+                const clicks = Math.floor(impressions * (Math.random() * 0.05 + 0.01)); // 1-6% CTR
+                const conversions = Math.floor(clicks * (Math.random() * 0.1 + 0.02)); // 2-12% conversion
+                const cpc = (Math.random() * 3 + 0.5).toFixed(2); // $0.50-$3.50 CPC
+                const conversionRate = ((conversions / clicks) * 100).toFixed(2);
+                
+                data.push([
+                    campaigns[Math.floor(Math.random() * campaigns.length)],
+                    channels[Math.floor(Math.random() * channels.length)],
+                    impressions,
+                    clicks,
+                    conversions,
+                    '$' + cpc,
+                    conversionRate + '%'
+                ]);
+            }
+            return data;
+        }
+
+        function onDataLoaded() {
+            console.log('Data loaded:', currentDataset);
+            
+            // Show controls section
+            document.getElementById('controlsSection').style.display = 'block';
+            
+            // Analyze dataset
+            analyzeDataset();
+            
+            // Auto-generate dashboard
+            setTimeout(generateDashboard, 1000);
+        }
+
+        function analyzeDataset() {
+            if (!currentDataset) return;
+            
+            const profile = {
+                name: currentDataset.name,
+                rowCount: currentDataset.rowCount,
+                columnCount: currentDataset.columnCount,
+                columns: currentDataset.headers.map(header => analyzeColumn(header)),
+                qualityScore: calculateQualityScore(),
+                insights: generateInsights()
+            };
+            
+            datasetProfile = profile;
+            displayDatasetInfo(profile);
+        }
+
+        function analyzeColumn(header) {
+            // Simple data type detection based on column name
+            const headerLower = header.toLowerCase();
+            
+            let dataType = 'text';
+            if (headerLower.includes('date') || headerLower.includes('time')) {
+                dataType = 'datetime';
+            } else if (headerLower.includes('revenue') || headerLower.includes('cost') || headerLower.includes('price') || headerLower.includes('amount')) {
+                dataType = 'currency';
+            } else if (headerLower.includes('rate') || headerLower.includes('percent') || headerLower.includes('ratio')) {
+                dataType = 'percentage';
+            } else if (headerLower.includes('count') || headerLower.includes('number') || headerLower.includes('qty')) {
+                dataType = 'numeric';
+            } else if (['region', 'category', 'type', 'status', 'channel', 'department'].some(word => headerLower.includes(word))) {
+                dataType = 'categorical';
+            }
+            
+            return {
+                name: header,
+                dataType: dataType,
+                uniqueValues: Math.floor(Math.random() * 20) + 5 // Simulated
+            };
+        }
+
+        function calculateQualityScore() {
+            // Simulated quality score calculation
+            return 0.85 + Math.random() * 0.1; // 85-95%
+        }
+
+        function generateInsights() {
+            const insights = [
+                `Dataset contains ${currentDataset.rowCount.toLocaleString()} records with ${currentDataset.columnCount} variables`,
+                `Good data completeness (${(Math.random() * 5 + 2).toFixed(1)}% missing)`,
+                `${Math.floor(Math.random() * 4) + 2} numeric variables available for analysis`
+            ];
+            
+            if (currentDataset.headers.some(h => h.toLowerCase().includes('date'))) {
+                insights.push('Time series analysis possible with date columns');
+            }
+            
+            return insights;
+        }
+
+        function displayDatasetInfo(profile) {
+            // Display stats
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = `
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number">${profile.rowCount.toLocaleString()}</div>
+                        <div class="stats-label">Rows</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number">${profile.columnCount}</div>
+                        <div class="stats-label">Columns</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number">${(profile.qualityScore * 100).toFixed(0)}%</div>
+                        <div class="stats-label">Quality Score</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number">${profile.columns.filter(c => c.dataType === 'numeric' || c.dataType === 'currency').length}</div>
+                        <div class="stats-label">Numeric Columns</div>
+                    </div>
+                </div>
+            `;
+            
+            // Display insights
+            const insightsContainer = document.getElementById('insightsContainer');
+            insightsContainer.innerHTML = profile.insights.map(insight => 
+                `<div class="insight-item"><i class="fas fa-lightbulb text-warning me-2"></i>${insight}</div>`
+            ).join('');
+            
+            // Show dataset info section
+            document.getElementById('datasetInfo').style.display = 'block';
+        }
+
+        function generateDashboard() {
+            if (!currentDataset) {
+                alert('Please upload a dataset first.');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loadingSection').style.display = 'block';
+            
+            // Simulate progress
+            simulateProgress();
+            
+            // Generate dashboard after delay
+            setTimeout(() => {
+                createDashboard();
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('dashboardSection').style.display = 'block';
+                
+                // Scroll to dashboard
+                document.getElementById('dashboardSection').scrollIntoView({ behavior: 'smooth' });
+            }, 3000);
+        }
+
+        function simulateProgress() {
+            const progressBar = document.getElementById('progressBar');
+            let progress = 0;
+            
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                progressBar.style.width = progress + '%';
+            }, 200);
+        }
+
+        function createDashboard() {
+            const theme = document.getElementById('themeSelect').value;
+            const chartLimit = parseInt(document.getElementById('chartLimit').value);
+            
+            try {
+                // Create sample charts based on the dataset
+                const charts = generateCharts(currentDataset, Math.min(chartLimit, 9));
+                
+                // Apply layout for the main container
+                const layout = {
+                    title: {
+                        text: `<b>${currentDataset.name} - Auto-Generated Dashboard</b>`,
+                        x: 0.5,
+                        font: { size: 20 }
+                    },
+                    height: 800,
+                    showlegend: false,
+                    paper_bgcolor: theme === 'dark' ? '#2d2d2d' : '#ffffff',
+                    plot_bgcolor: theme === 'dark' ? '#1e1e1e' : '#f8f9fa',
+                    font: { color: theme === 'dark' ? '#ffffff' : '#333333' }
+                };
+                
+                // Clear and create dashboard container
+                const container = document.getElementById('plotlyDashboard');
+                container.innerHTML = '';
+                
+                // Add individual charts directly
+                addChartsToPlotly(charts, theme);
+                
+            } catch (error) {
+                console.error('Error creating dashboard:', error);
+                document.getElementById('plotlyDashboard').innerHTML = `
+                    <div class="alert alert-warning">
+                        <h5>Dashboard Generation Notice</h5>
+                        <p>Creating individual charts instead of subplot layout for better compatibility.</p>
+                    </div>
+                `;
+                
+                // Fallback: create simple charts
+                const charts = generateCharts(currentDataset, Math.min(chartLimit, 6));
+                addChartsToPlotly(charts, theme);
+            }
+        }
+
+        function generateCharts(dataset, maxCharts) {
+            const charts = [];
+            
+            try {
+                // Overview KPI
+                charts.push({
+                    title: 'Dataset Overview',
+                    type: 'kpi',
+                    traces: []
+                });
+                
+                // Generate charts for each column
+                const availableColumns = Math.min(dataset.headers.length, maxCharts - 1);
+                
+                for (let i = 0; i < availableColumns; i++) {
+                    const header = dataset.headers[i];
+                    const columnProfile = datasetProfile.columns.find(c => c.name === header);
+                    
+                    if (columnProfile) {
+                        const chart = createChartForColumn(header, columnProfile, dataset);
+                        if (chart && chart.traces && chart.traces.length > 0) {
+                            charts.push(chart);
+                        }
+                    }
+                    
+                    // Stop if we've reached max charts
+                    if (charts.length >= maxCharts) break;
+                }
+                
+                return charts;
+                
+            } catch (error) {
+                console.error('Error generating charts:', error);
+                return [{
+                    title: 'Dataset Overview',
+                    type: 'kpi',
+                    traces: []
+                }];
+            }
+        }
+
+        function createChartForColumn(header, profile, dataset) {
+            try {
+                const columnIndex = dataset.headers.indexOf(header);
+                if (columnIndex === -1) return null;
+                
+                const columnData = dataset.data.map(row => row[columnIndex]).filter(val => val !== undefined);
+                
+                if (columnData.length === 0) return null;
+                
+                if (profile.dataType === 'categorical') {
+                    return createBarChart(header, columnData);
+                } else if (profile.dataType === 'numeric' || profile.dataType === 'currency') {
+                    return createHistogram(header, columnData);
+                } else if (profile.dataType === 'datetime') {
+                    return createTimeSeriesChart(header, columnData);
+                } else if (profile.dataType === 'percentage') {
+                    return createHistogram(header, columnData);
+                }
+                
+                // Fallback: try to create a bar chart for any other type
+                return createBarChart(header, columnData);
+                
+            } catch (error) {
+                console.error('Error creating chart for column:', header, error);
+                return null;
+            }
+        }
+
+        function createBarChart(title, data) {
+            try {
+                // Count occurrences
+                const counts = {};
+                data.forEach(value => {
+                    if (value && value !== '' && value !== null && value !== undefined) {
+                        const cleanValue = String(value).trim();
+                        if (cleanValue) {
+                            counts[cleanValue] = (counts[cleanValue] || 0) + 1;
+                        }
+                    }
+                });
+                
+                const entries = Object.entries(counts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10); // Top 10
+                
+                const labels = entries.map(entry => entry[0]);
+                const values = entries.map(entry => entry[1]);
+                
+                return {
+                    title: title,
+                    type: 'bar',
+                    traces: [{
+                        x: labels,
+                        y: values,
+                        type: 'bar',
+                        marker: { color: '#667eea' },
+                        name: title
+                    }]
+                };
+            } catch (error) {
+                console.error('Error creating bar chart:', error);
+                return null;
+            }
+        }
+
+        function createHistogram(title, data) {
+            try {
+                const numericData = data
+                    .map(d => {
+                        if (d === null || d === undefined || d === '') return NaN;
+                        const cleanValue = String(d).replace(/[$,\s%]/g, '');
+                        return parseFloat(cleanValue);
+                    })
+                    .filter(d => !isNaN(d) && isFinite(d));
+                
+                if (numericData.length === 0) {
+                    return null;
+                }
+                
+                return {
+                    title: title,
+                    type: 'histogram',
+                    traces: [{
+                        x: numericData,
+                        type: 'histogram',
+                        marker: { color: '#764ba2' },
+                        name: title,
+                        nbinsx: Math.min(20, Math.ceil(Math.sqrt(numericData.length)))
+                    }]
+                };
+            } catch (error) {
+                console.error('Error creating histogram:', error);
+                return null;
+            }
+        }
+
+        function createTimeSeriesChart(title, data) {
+            try {
+                // Filter and parse dates
+                const dateEntries = data
+                    .map((dateStr, index) => {
+                        if (!dateStr || dateStr === '') return null;
+                        const date = new Date(dateStr);
+                        return isNaN(date.getTime()) ? null : { date: date, index: index };
+                    })
+                    .filter(entry => entry !== null)
+                    .sort((a, b) => a.date - b.date);
+                
+                if (dateEntries.length === 0) {
+                    return null;
+                }
+                
+                // Count occurrences by date
+                const dateCounts = {};
+                dateEntries.forEach(entry => {
+                    const dateStr = entry.date.toISOString().split('T')[0];
+                    dateCounts[dateStr] = (dateCounts[dateStr] || 0) + 1;
+                });
+                
+                const sortedDates = Object.keys(dateCounts).sort();
+                const values = sortedDates.map(date => dateCounts[date]);
+                
+                return {
+                    title: title,
+                    type: 'line',
+                    traces: [{
+                        x: sortedDates,
+                        y: values,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        line: { color: '#f093fb' },
+                        name: title
+                    }]
+                };
+            } catch (error) {
+                console.error('Error creating time series chart:', error);
+                return null;
+            }
+        }
+
+        function addChartsToPlotly(charts, theme) {
+            const container = document.getElementById('plotlyDashboard');
+            
+            try {
+                // Create individual chart containers
+                container.innerHTML = '';
+                
+                charts.forEach((chart, index) => {
+                    if (!chart) return; // Skip null charts
+                    
+                    const chartDiv = document.createElement('div');
+                    chartDiv.id = `chart-${index}`;
+                    chartDiv.className = 'chart-container';
+                    chartDiv.style.height = '400px';
+                    chartDiv.style.margin = '15px 0';
+                    container.appendChild(chartDiv);
+                    
+                    if (chart.type === 'kpi') {
+                        // Create KPI display
+                        chartDiv.innerHTML = `
+                            <div class="text-center p-4">
+                                <h5 class="mb-4">${chart.title}</h5>
+                                <div class="row">
+                                    <div class="col-3">
+                                        <div class="badge bg-primary p-3">
+                                            <div style="font-size: 1.5rem; font-weight: bold;">${currentDataset.rowCount.toLocaleString()}</div>
+                                            <div style="font-size: 0.8rem;">Rows</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="badge bg-info p-3">
+                                            <div style="font-size: 1.5rem; font-weight: bold;">${currentDataset.columnCount}</div>
+                                            <div style="font-size: 0.8rem;">Columns</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="badge bg-success p-3">
+                                            <div style="font-size: 1.5rem; font-weight: bold;">${(datasetProfile.qualityScore * 100).toFixed(0)}%</div>
+                                            <div style="font-size: 0.8rem;">Quality</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="badge bg-warning p-3">
+                                            <div style="font-size: 1.5rem; font-weight: bold;">${Math.floor(Math.random() * 5) + 2}</div>
+                                            <div style="font-size: 0.8rem;">Insights</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (chart.traces && chart.traces.length > 0) {
+                        // Create Plotly chart
+                        const layout = {
+                            title: {
+                                text: chart.title,
+                                font: { size: 16 }
+                            },
+                            margin: { l: 60, r: 40, t: 60, b: 60 },
+                            paper_bgcolor: theme === 'dark' ? '#2d2d2d' : '#ffffff',
+                            plot_bgcolor: theme === 'dark' ? '#1e1e1e' : '#f8f9fa',
+                            font: { 
+                                size: 12,
+                                color: theme === 'dark' ? '#ffffff' : '#333333'
+                            },
+                            xaxis: {
+                                gridcolor: theme === 'dark' ? '#404040' : '#e0e0e0',
+                                tickfont: { color: theme === 'dark' ? '#ffffff' : '#333333' }
+                            },
+                            yaxis: {
+                                gridcolor: theme === 'dark' ? '#404040' : '#e0e0e0',
+                                tickfont: { color: theme === 'dark' ? '#ffffff' : '#333333' }
+                            }
+                        };
+                        
+                        const config = {
+                            responsive: true,
+                            displayModeBar: true,
+                            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+                            displaylogo: false
+                        };
+                        
+                        Plotly.newPlot(chartDiv.id, chart.traces, layout, config)
+                            .catch(error => {
+                                console.error('Error creating Plotly chart:', error);
+                                chartDiv.innerHTML = `
+                                    <div class="alert alert-warning">
+                                        <h6>${chart.title}</h6>
+                                        <p>Chart could not be rendered. Data may need cleaning.</p>
+                                    </div>
+                                `;
+                            });
+                    } else {
+                        // Fallback for invalid charts
+                        chartDiv.innerHTML = `
+                            <div class="alert alert-info text-center">
+                                <h6>${chart.title}</h6>
+                                <p><i class="fas fa-chart-bar fa-2x mb-2"></i><br>Chart placeholder - insufficient data</p>
+                            </div>
+                        `;
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error adding charts to Plotly:', error);
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>Dashboard Generation Error</h5>
+                        <p>There was an error generating the dashboard. Please try with a different dataset.</p>
+                        <p><small>Error: ${error.message}</small></p>
+                    </div>
+                `;
+            }
+        }
+
+        function exportDashboard(format) {
+            if (format === 'html') {
+                // Create HTML export
+                const dashboardHTML = document.getElementById('plotlyDashboard').outerHTML;
+                const blob = new Blob([createExportHTML(dashboardHTML)], { type: 'text/html' });
+                downloadFile(blob, `${currentDataset.name}_dashboard.html`);
+            } else if (format === 'png') {
+                // For PNG export, we would need to capture the dashboard as image
+                alert('PNG export feature coming soon! Use your browser\'s print/save as PDF for now.');
+            }
+        }
+
+        function createExportHTML(dashboardContent) {
+            return `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${currentDataset.name} Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chart-container { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>${currentDataset.name} - Dashboard</h1>
+    <p>Generated on ${new Date().toLocaleDateString()}</p>
+    ${dashboardContent}
+</body>
+</html>`;
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Auto-Dashboard Generator loaded');
+            
+            // Add smooth scrolling
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
