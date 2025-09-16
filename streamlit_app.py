@@ -219,7 +219,7 @@ def get_coverage_color(coverage_percent):
         return '#4a148c'  # Purple (100% coverage)
 
 def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
-    """Create coverage dashboard optimized for Word document export"""
+    """Create coverage dashboard optimized for Word document export - WITH 100% CAP FIX"""
     
     # Filter shapefile for the district
     district_gdf = gdf[gdf['FIRST_DNAM'] == district_name].copy()
@@ -273,16 +273,27 @@ def create_coverage_dashboard(gdf, extracted_df, district_name, cols=4):
         
         # Calculate coverage percentage
         coverage_percent = (actual_schools / target_schools * 100) if target_schools > 0 else 0
-        coverage_percent = min(coverage_percent, 100)  # Cap at 100%
         
-        # Get color based on coverage
+        # NEW: Handle 100% coverage display logic
+        if coverage_percent >= 100:
+            # When coverage is 100% or more, show equal numbers in brackets
+            display_coverage_percent = 100.0
+            display_actual = target_schools  # Set actual equal to target for display
+            display_target = target_schools
+        else:
+            # Normal display when coverage is less than 100%
+            display_coverage_percent = coverage_percent
+            display_actual = actual_schools
+            display_target = target_schools
+        
+        # Get color based on actual coverage (use original coverage for color determination)
         coverage_color = get_coverage_color(coverage_percent)
         
         # Plot chiefdom boundary with coverage color
         chiefdom_gdf.plot(ax=ax, color=coverage_color, edgecolor='black', alpha=0.8, linewidth=1.5)
         
-        # Create coverage text
-        coverage_text = f"{actual_schools}/{target_schools} ({coverage_percent:.0f}%)"
+        # Create coverage text using display values
+        coverage_text = f"{display_actual}/{display_target} ({display_coverage_percent:.0f}%)"
         
         # Set title with coverage information (optimized font size for Word)
         ax.set_title(f'{chiefdom}\n{coverage_text}', 
@@ -336,6 +347,14 @@ st.markdown("""
 - 🟢 **Light Green**: 60-79%
 - 🔵 **Blue**: 80-99%
 - 🟣 **Purple**: 100%+
+""")
+
+# Coverage format explanation
+st.markdown("""
+### Coverage Format:
+- **Format**: `Actual/Target (Coverage%)`
+- **100% Display Rule**: When coverage ≥ 100%, numbers show as equal values (target/target) but color reflects actual coverage
+- **Calculation**: (Actual Schools / Target Schools) × 100%
 """)
 
 # File Information
@@ -643,15 +662,6 @@ bombali_chiefdoms = ['BIRIWA', 'BOMBALI SEBORA', 'BOMBALI SIARI', 'GBANTI', 'GBE
 bo_target_total = sum([target_data_all.get(k, 0) for k in bo_chiefdoms])
 bombali_target_total = sum([target_data_all.get(k, 0) for k in bombali_chiefdoms])
 
-# Debug information
-st.write(f"**Debug Info:**")
-st.write(f"- BO District records: {len(bo_data)}")
-st.write(f"- BOMBALI District records: {len(bombali_data)}")
-st.write(f"- BO District target total: {bo_target_total}")
-st.write(f"- BOMBALI District target total: {bombali_target_total}")
-st.write(f"- Unique districts in data: {extracted_df['District'].unique()}")
-st.write(f"- Sample BO chiefdoms in data: {bo_data['Chiefdom'].unique()[:5] if len(bo_data) > 0 else 'None'}")
-
 # Coverage metrics
 col1, col2, col3, col4 = st.columns(4)
 
@@ -690,6 +700,186 @@ with col4:
     
     good_coverage_percent = (good_coverage_count / total_chiefdoms * 100) if total_chiefdoms > 0 else 0
     st.metric("Chiefdoms with Good Coverage", f"{good_coverage_percent:.0f}%", f"{good_coverage_count}/{total_chiefdoms}")
+
+# Executive Summary Section
+st.subheader("📋 Executive Summary")
+
+# Overall Coverage Summary
+st.write("### Overall School Coverage Summary")
+
+summary_col1, summary_col2, summary_col3 = st.columns(3)
+
+with summary_col1:
+    st.write("**Total Program Coverage:**")
+    st.write(f"• Total Target Schools: {total_target:,}")
+    st.write(f"• Total Actual Schools: {total_actual:,}")
+    st.write(f"• Overall Coverage Rate: {overall_coverage:.1f}%")
+    st.write(f"• Coverage Gap: {total_target - total_actual:,} schools")
+
+with summary_col2:
+    st.write("**District Performance:**")
+    st.write(f"• BO District: {bo_coverage:.1f}% ({len(bo_data):,}/{bo_target_total:,})")
+    st.write(f"• BOMBALI District: {bombali_coverage:.1f}% ({len(bombali_data):,}/{bombali_target_total:,})")
+    
+    # Identify better performing district
+    if bo_coverage > bombali_coverage:
+        st.write(f"• Leading District: BO (+{bo_coverage - bombali_coverage:.1f}%)")
+    elif bombali_coverage > bo_coverage:
+        st.write(f"• Leading District: BOMBALI (+{bombali_coverage - bo_coverage:.1f}%)")
+    else:
+        st.write("• Equal Performance Between Districts")
+
+with summary_col3:
+    st.write("**Coverage Distribution:**")
+    # Calculate coverage categories
+    excellent_count = sum(1 for district in ["BO", "BOMBALI"] 
+                         for chiefdom in extracted_df[extracted_df["District"].str.upper() == district.upper()]['Chiefdom'].dropna().unique()
+                         if (len(extracted_df[(extracted_df["District"].str.upper() == district.upper()) & 
+                                            (extracted_df["Chiefdom"] == chiefdom)]) / 
+                             target_data_all.get(chiefdom, 1) * 100) >= 80)
+    
+    good_count = sum(1 for district in ["BO", "BOMBALI"] 
+                    for chiefdom in extracted_df[extracted_df["District"].str.upper() == district.upper()]['Chiefdom'].dropna().unique()
+                    if 60 <= (len(extracted_df[(extracted_df["District"].str.upper() == district.upper()) & 
+                                              (extracted_df["Chiefdom"] == chiefdom)]) / 
+                             target_data_all.get(chiefdom, 1) * 100) < 80)
+    
+    fair_count = sum(1 for district in ["BO", "BOMBALI"] 
+                    for chiefdom in extracted_df[extracted_df["District"].str.upper() == district.upper()]['Chiefdom'].dropna().unique()
+                    if 40 <= (len(extracted_df[(extracted_df["District"].str.upper() == district.upper()) & 
+                                              (extracted_df["Chiefdom"] == chiefdom)]) / 
+                             target_data_all.get(chiefdom, 1) * 100) < 60)
+    
+    poor_critical_count = total_chiefdoms - excellent_count - good_count - fair_count
+    
+    st.write(f"• Excellent (≥80%): {excellent_count} chiefdoms")
+    st.write(f"• Good (60-79%): {good_count} chiefdoms") 
+    st.write(f"• Fair (40-59%): {fair_count} chiefdoms")
+    st.write(f"• Poor/Critical (<40%): {poor_critical_count} chiefdoms")
+
+# District-Level Summary
+st.write("### District-Level Summary")
+
+district_summary_data = []
+
+# BO District Summary
+bo_chiefdoms_in_data = bo_data['Chiefdom'].dropna().unique()
+bo_chiefdoms_count = len(bo_chiefdoms_in_data)
+
+district_summary_data.append({
+    'District': 'BO',
+    'Chiefdoms': bo_chiefdoms_count,
+    'Target Schools': bo_target_total,
+    'Actual Schools': len(bo_data),
+    'Coverage %': f"{bo_coverage:.1f}%",
+    'Gap': bo_target_total - len(bo_data),
+    'Performance': 'Excellent' if bo_coverage >= 80 else 'Good' if bo_coverage >= 60 else 'Fair' if bo_coverage >= 40 else 'Poor'
+})
+
+# BOMBALI District Summary  
+bombali_chiefdoms_in_data = bombali_data['Chiefdom'].dropna().unique()
+bombali_chiefdoms_count = len(bombali_chiefdoms_in_data)
+
+district_summary_data.append({
+    'District': 'BOMBALI', 
+    'Chiefdoms': bombali_chiefdoms_count,
+    'Target Schools': bombali_target_total,
+    'Actual Schools': len(bombali_data),
+    'Coverage %': f"{bombali_coverage:.1f}%",
+    'Gap': bombali_target_total - len(bombali_data),
+    'Performance': 'Excellent' if bombali_coverage >= 80 else 'Good' if bombali_coverage >= 60 else 'Fair' if bombali_coverage >= 40 else 'Poor'
+})
+
+# Overall Summary
+district_summary_data.append({
+    'District': 'TOTAL',
+    'Chiefdoms': total_chiefdoms,
+    'Target Schools': total_target,
+    'Actual Schools': total_actual, 
+    'Coverage %': f"{overall_coverage:.1f}%",
+    'Gap': total_target - total_actual,
+    'Performance': 'Excellent' if overall_coverage >= 80 else 'Good' if overall_coverage >= 60 else 'Fair' if overall_coverage >= 40 else 'Poor'
+})
+
+district_summary_df = pd.DataFrame(district_summary_data)
+st.dataframe(district_summary_df, use_container_width=True)
+
+# Key Findings
+st.write("### Key Findings")
+
+findings_col1, findings_col2 = st.columns(2)
+
+with findings_col1:
+    st.write("**Achievements:**")
+    
+    # Top performing chiefdoms
+    top_performers = []
+    for district in ["BO", "BOMBALI"]:
+        district_data = extracted_df[extracted_df["District"].str.upper() == district.upper()]
+        chiefdoms = district_data['Chiefdom'].dropna().unique()
+        
+        for chiefdom in chiefdoms:
+            chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
+            actual = len(chiefdom_data)
+            target = target_data_all.get(chiefdom, 0)
+            coverage = (actual / target * 100) if target > 0 else 0
+            
+            if coverage >= 80:
+                top_performers.append((chiefdom, district, coverage))
+    
+    top_performers.sort(key=lambda x: x[2], reverse=True)
+    
+    if top_performers:
+        st.write("• Top performing chiefdoms (≥80% coverage):")
+        for chiefdom, district, coverage in top_performers[:5]:  # Show top 5
+            st.write(f"  - {chiefdom} ({district}): {coverage:.1f}%")
+    else:
+        st.write("• No chiefdoms achieved excellent coverage (≥80%)")
+    
+    if good_coverage_count > 0:
+        st.write(f"• {good_coverage_count} chiefdoms achieved good coverage (≥60%)")
+
+with findings_col2:
+    st.write("**Areas for Improvement:**")
+    
+    # Underperforming areas
+    underperformers = []
+    for district in ["BO", "BOMBALI"]:
+        district_data = extracted_df[extracted_df["District"].str.upper() == district.upper()]
+        chiefdoms = district_data['Chiefdom'].dropna().unique()
+        
+        for chiefdom in chiefdoms:
+            chiefdom_data = district_data[district_data['Chiefdom'] == chiefdom]
+            actual = len(chiefdom_data)
+            target = target_data_all.get(chiefdom, 0)
+            coverage = (actual / target * 100) if target > 0 else 0
+            
+            if coverage < 40:
+                underperformers.append((chiefdom, district, coverage, target - actual))
+    
+    underperformers.sort(key=lambda x: x[2])  # Sort by coverage (lowest first)
+    
+    if underperformers:
+        st.write("• Priority areas needing attention (<40% coverage):")
+        for chiefdom, district, coverage, gap in underperformers[:5]:  # Show bottom 5
+            st.write(f"  - {chiefdom} ({district}): {coverage:.1f}% (gap: {gap} schools)")
+    
+    total_gap = total_target - total_actual
+    if total_gap > 0:
+        st.write(f"• Total coverage gap: {total_gap:,} schools need to be reached")
+    
+    if overall_coverage < 60:
+        st.write("• Overall program coverage below good threshold")
+
+# Debug information (moved to expandable section)
+with st.expander("🔍 Debug Information"):
+    st.write(f"**Debug Info:**")
+    st.write(f"- BO District records: {len(bo_data)}")
+    st.write(f"- BOMBALI District records: {len(bombali_data)}")
+    st.write(f"- BO District target total: {bo_target_total}")
+    st.write(f"- BOMBALI District target total: {bombali_target_total}")
+    st.write(f"- Unique districts in data: {extracted_df['District'].unique()}")
+    st.write(f"- Sample BO chiefdoms in data: {bo_data['Chiefdom'].unique()[:5] if len(bo_data) > 0 else 'None'}")
 
 # Detailed coverage table
 st.subheader("📋 Detailed Coverage by Chiefdom")
@@ -803,6 +993,7 @@ if st.button("📋 Generate Combined Coverage Report", help="Generate a comprehe
         
         Coverage is calculated as: (Actual Schools / Target Schools) × 100%
         Color coding helps identify areas requiring attention and those performing well.
+        100% Coverage Display Rule: When coverage ≥ 100%, display shows equal numbers (target/target) but color reflects actual coverage level.
         """
         
         for line in summary_text.strip().split('\n'):
