@@ -110,22 +110,23 @@ seasonality_threshold <- 60
 - **Lines 13-15**: Modify output file names as needed for saving the results
 
 
-
 ### Step 3: Prepare data for analysis
 
+#### Step 3.1: Check required columns
+
 ```{R}
-#| message: false
-#| echo: true
-#| eval: true
-#| code-fold: false
-#| code-summary: "Show the code"
 # Check if required columns exist
 required_cols <- c(year_column, month_column, value_column, admin_columns)
 missing_cols <- required_cols[!required_cols %in% colnames(data)]
 if (length(missing_cols) > 0) {
   stop(paste("Missing columns:", paste(missing_cols, collapse = ", ")))
 }
+```
 
+
+#### Step 3.2: Filter data and ensure numeric month
+
+```{R}
 # Filter data and ensure month is numeric
 filtered_data <- data |>
   dplyr::filter(
@@ -134,7 +135,11 @@ filtered_data <- data |>
     !!sym(year_column) >= analysis_start_year
   ) |>
   dplyr::mutate(Month = as.numeric(!!sym(month_column)))
+```
 
+#### Step 3.3: Create combined administrative grouping variable
+
+```{R}
 # Create combined grouping variable from multiple admin unit columns
 if (length(admin_columns) == 1) {
   filtered_data$admin_group <- filtered_data[[admin_columns[1]]]
@@ -144,7 +149,12 @@ if (length(admin_columns) == 1) {
       admin_group = paste(!!!syms(admin_columns), sep = " | ")
     )
 }
+```
 
+
+#### Step 3.4: Validate available years and data span
+
+```{R}
 # Calculate data span and validate minimum requirements
 available_years <- sort(unique(filtered_data[[year_column]]))
 data_span_years <- length(available_years)
@@ -162,26 +172,30 @@ total_num_blocks <- num_complete_years * 12
 
 **To adapt the code:**
 
-- Do not change anything in the code 
-
+* Do not change anything in the code
 
 ### Step 4: Generate rolling time blocks
 
+#### Step 4.1: Define month names
+
 ```{R}
-#| message: false
-#| echo: true
-#| eval: true
-#| code-fold: false
-#| code-summary: "Show the code"
 # Create month names for labels
 month_names <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+```
+#### Step 4.2: Initialize block storage and counters
 
+```{R}
 # Generate all time blocks
 blocks <- data.frame()
 current_year <- analysis_start_year
 current_month <- analysis_start_month
+```
 
+
+#### Step 4.3: Loop through blocks and define 4-month periods
+
+```{R}
 for (i in 1:total_num_blocks) {
   # 4-month period
   start_4m_year <- current_year
@@ -193,7 +207,11 @@ for (i in 1:total_num_blocks) {
     end_4m_year <- end_4m_year + 1
     end_4m_month <- end_4m_month - 12
   }
-  
+```
+
+#### Step 4.4: Define 12-month periods
+
+```{R}
   # 12-month period  
   start_12m_year <- current_year
   start_12m_month <- current_month
@@ -204,7 +222,11 @@ for (i in 1:total_num_blocks) {
     end_12m_year <- end_12m_year + 1
     end_12m_month <- end_12m_month - 12
   }
-  
+```
+
+#### Step 4.5: Create date range labels and store block
+
+```{R}
   # Create date range label
   date_range <- paste0(
     month_names[start_4m_month], " ", start_4m_year, "-",
@@ -224,7 +246,12 @@ for (i in 1:total_num_blocks) {
     end_12m_month = end_12m_month,
     date_range = date_range
   ))
-  
+```
+
+
+#### Step 4.6: Update counters for next loop
+
+```{R}
   # Move to next month
   current_month <- current_month + 1
   if (current_month > 12) {
@@ -232,14 +259,173 @@ for (i in 1:total_num_blocks) {
     current_year <- current_year + 1
   }
 }
-
 ```
+
+**To adapt the code:**
+
+* Do not change anything in the code
 
 **To adapt the code:**
 
 - Do not change anything in the code 
 
 ### Step 5: Calculate seasonality for each block
+### Step 5: Calculate seasonality for each block
+
+#### Step 5.1: Initialize results and groups
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+
+# Initialize results dataframe
+detailed_results <- data.frame()
+
+# Get unique administrative groups
+admin_groups <- unique(filtered_data$admin_group)
+```
+
+**To adapt the code:**
+
+* Do not change anything in the code
+
+
+#### Step 5.2: Loop through administrative units
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+# Loop through each administrative unit
+for (admin_unit in admin_groups) {
+  # Filter data for this administrative unit
+  unit_data <- filtered_data |>
+    dplyr::filter(admin_group == admin_unit)
+  
+  # Loop through each time block
+  for (i in 1:nrow(blocks)) {
+    block <- blocks[i, ]
+    
+    # Create year-month values for comparison
+    unit_data_ym <- unit_data[[year_column]] * 12 + unit_data$Month
+```
+
+**To adapt the code:**
+
+* Do not change anything in the code
+
+
+#### Step 5.3: Calculate 4-month window
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+    # Calculate 4-month window
+    start_4m_ym <- block$start_4m_year * 12 + block$start_4m_month
+    end_4m_ym <- block$end_4m_year * 12 + block$end_4m_month
+    
+    data_4m <- unit_data |>
+      dplyr::filter(
+        unit_data_ym >= start_4m_ym & unit_data_ym <= end_4m_ym
+      )
+    total_4m <- sum(data_4m[[value_column]], na.rm = TRUE)
+```
+**To adapt the code:**
+
+* Do not change anything in the code
+
+#### Step 5.4: Calculate 12-month window
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+    # Calculate 12-month window
+    start_12m_ym <- block$start_12m_year * 12 + block$start_12m_month
+    end_12m_ym <- block$end_12m_year * 12 + block$end_12m_month
+    
+    data_12m <- unit_data |>
+      dplyr::filter(
+        unit_data_ym >= start_12m_ym & unit_data_ym <= end_12m_ym
+      )
+    total_12m <- sum(data_12m[[value_column]], na.rm = TRUE)
+```
+**To adapt the code:**
+
+* Do not change anything in the code
+
+#### Step 5.5: Compute percentage and seasonality flag
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+    # Calculate seasonality percentage
+    percent_seasonality <- ifelse(
+      total_12m > 0, 
+      (total_4m / total_12m) * 100, 
+      0
+    )
+    is_seasonal <- as.numeric(percent_seasonality >= seasonality_threshold)
+```
+**To adapt the code:**
+
+* Do not change anything in the code
+
+#### Step 5.6: Build result row and append
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+    # Create result row
+    result_row <- data.frame(
+      Block = i,
+      DateRange = block$date_range,
+      Total_4M = total_4m,
+      Total_12M = total_12m,
+      Percent_Seasonality = round(percent_seasonality, 2),
+      Seasonal = is_seasonal,
+      stringsAsFactors = FALSE
+    )
+    
+    # Add administrative columns
+    if (length(admin_columns) > 1) {
+      admin_parts <- strsplit(admin_unit, " \\| ")[[1]]
+      for (j in seq_along(admin_columns)) {
+        if (j <= length(admin_parts)) {
+          result_row[[admin_columns[j]]] <- admin_parts[j]
+        } else {
+          result_row[[admin_columns[j]]] <- NA
+        }
+      }
+    } else {
+      result_row[[admin_columns[1]]] <- admin_unit
+    }
+    
+    detailed_results <- rbind(detailed_results, result_row)
+  }
+}
+```
+**To adapt the code:**
+
+* Do not change anything in the code
+
+#### Step 5.7: Save and preview results
 
 ```{R}
 #| message: false
@@ -247,189 +433,36 @@ for (i in 1:total_num_blocks) {
 #| eval: false
 #| code-fold: false
 #| code-summary: "Show the code"
-# Initialize results dataframe
-detailed_results <- data.frame()
-
-# Get unique administrative groups
-admin_groups <- unique(filtered_data$admin_group)
-
-# Loop through each administrative unit
-for (admin_unit in admin_groups) {
-  # Filter data for this administrative unit
-  unit_data <- filtered_data |>
-    dplyr::filter(admin_group == admin_unit)
-  
-  # Loop through each time block
-  for (i in 1:nrow(blocks)) {
-    block <- blocks[i, ]
-    
-    # Create year-month values for comparison
-    unit_data_ym <- unit_data[[year_column]] * 12 + unit_data$Month
-    
-    # Calculate 4-month window
-    start_4m_ym <- block$start_4m_year * 12 + block$start_4m_month
-    end_4m_ym <- block$end_4m_year * 12 + block$end_4m_month
-    
-    data_4m <- unit_data |>
-      dplyr::filter(
-        unit_data_ym >= start_4m_ym & unit_data_ym <= end_4m_ym
-      )
-    total_4m <- sum(data_4m[[value_column]], na.rm = TRUE)
-    
-    # Calculate 12-month window
-    start_12m_ym <- block$start_12m_year * 12 + block$start_12m_month
-    end_12m_ym <- block$end_12m_year * 12 + block$end_12m_month
-    
-    data_12m <- unit_data |>
-      dplyr::filter(
-        unit_data_ym >= start_12m_ym & unit_data_ym <= end_12m_ym
-      )
-    total_12m <- sum(data_12m[[value_column]], na.rm = TRUE)
-    
-    # Calculate seasonality percentage
-    percent_seasonality <- ifelse(
-      total_12m > 0, 
-      (total_4m / total_12m) * 100, 
-      0
-    )
-    is_seasonal <- as.numeric(percent_seasonality >= seasonality_threshold)
-    
-    # Create result row
-    result_row <- data.frame(
-      Block = i,
-      DateRange = block$date_range,
-      Total_4M = total_4m,
-      Total_12M = total_12m,
-      Percent_Seasonality = round(percent_seasonality, 2),
-      Seasonal = is_seasonal,
-      stringsAsFactors = FALSE
-    )
-    
-    # Add administrative columns
-    if (length(admin_columns) > 1) {
-      admin_parts <- strsplit(admin_unit, " \\| ")[[1]]
-      for (j in seq_along(admin_columns)) {
-        if (j <= length(admin_parts)) {
-          result_row[[admin_columns[j]]] <- admin_parts[j]
-        } else {
-          result_row[[admin_columns[j]]] <- NA
-        }
-      }
-    } else {
-      result_row[[admin_columns[1]]] <- admin_unit
-    }
-    
-    detailed_results <- rbind(detailed_results, result_row)
-  }
-}
-
 # Save results
-writexl::write_xlsx(detailed_results, detailed_output)
+#writexl::write_xlsx(detailed_results, detailed_output)
 
 # Display preview
 knitr::kable(head(detailed_results), caption = "Preview of Detailed Block Results")
 ```
-
 ::: {.callout-note title="Output" icon="false"}
 ```{R}
 #| message: false
-#| echo: false
+#| echo: true
 #| eval: true
-# Initialize results dataframe
-detailed_results <- data.frame()
-
-# Get unique administrative groups
-admin_groups <- unique(filtered_data$admin_group)
-
-# Loop through each administrative unit
-for (admin_unit in admin_groups) {
-  # Filter data for this administrative unit
-  unit_data <- filtered_data |>
-    dplyr::filter(admin_group == admin_unit)
-  
-  # Loop through each time block
-  for (i in 1:nrow(blocks)) {
-    block <- blocks[i, ]
-    
-    # Create year-month values for comparison
-    unit_data_ym <- unit_data[[year_column]] * 12 + unit_data$Month
-    
-    # Calculate 4-month window
-    start_4m_ym <- block$start_4m_year * 12 + block$start_4m_month
-    end_4m_ym <- block$end_4m_year * 12 + block$end_4m_month
-    
-    data_4m <- unit_data |>
-      dplyr::filter(
-        unit_data_ym >= start_4m_ym & unit_data_ym <= end_4m_ym
-      )
-    total_4m <- sum(data_4m[[value_column]], na.rm = TRUE)
-    
-    # Calculate 12-month window
-    start_12m_ym <- block$start_12m_year * 12 + block$start_12m_month
-    end_12m_ym <- block$end_12m_year * 12 + block$end_12m_month
-    
-    data_12m <- unit_data |>
-      dplyr::filter(
-        unit_data_ym >= start_12m_ym & unit_data_ym <= end_12m_ym
-      )
-    total_12m <- sum(data_12m[[value_column]], na.rm = TRUE)
-    
-    # Calculate seasonality percentage
-    percent_seasonality <- ifelse(
-      total_12m > 0, 
-      (total_4m / total_12m) * 100, 
-      0
-    )
-    is_seasonal <- as.numeric(percent_seasonality >= seasonality_threshold)
-    
-    # Create result row
-    result_row <- data.frame(
-      Block = i,
-      DateRange = block$date_range,
-      Total_4M = total_4m,
-      Total_12M = total_12m,
-      Percent_Seasonality = round(percent_seasonality, 2),
-      Seasonal = is_seasonal,
-      stringsAsFactors = FALSE
-    )
-    
-    # Add administrative columns
-    if (length(admin_columns) > 1) {
-      admin_parts <- strsplit(admin_unit, " \\| ")[[1]]
-      for (j in seq_along(admin_columns)) {
-        if (j <= length(admin_parts)) {
-          result_row[[admin_columns[j]]] <- admin_parts[j]
-        } else {
-          result_row[[admin_columns[j]]] <- NA
-        }
-      }
-    } else {
-      result_row[[admin_columns[1]]] <- admin_unit
-    }
-    
-    detailed_results <- rbind(detailed_results, result_row)
-  }
-}
-
-# Save results
-writexl::write_xlsx(detailed_results, detailed_output)
-
+#| code-fold: false
+#| code-summary: "Show the code"
 # Display preview
 knitr::kable(head(detailed_results), caption = "Preview of Detailed Block Results")
 ```
-
 :::
 
 **To adapt the code:**
 
-- Do not change anything in the code 
+* Do not change anything in the code
 
 ### Step 6: Generate yearly summary
 
+#### Step 6.1: Extract start year from DateRange
+
 ```{R}
 #| message: false
 #| echo: true
-#| eval: false
+#| eval: true
 #| code-fold: false
 #| code-summary: "Show the code"
 # Extract start year from DateRange
@@ -438,7 +471,16 @@ detailed_results$StartYear <- sapply(detailed_results$DateRange, function(x) {
   first_part <- trimws(parts[1])
   as.numeric(substr(first_part, nchar(first_part) - 3, nchar(first_part)))
 })
+```
 
+#### Step 6.2: Group by administrative columns and year
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
 # Group by administrative columns and year
 yearly_summary <- detailed_results |>
   dplyr::group_by(dplyr::across(dplyr::all_of(admin_columns)), StartYear) |>
@@ -448,7 +490,19 @@ yearly_summary <- detailed_results |>
     total_blocks_in_year = 12,
     at_least_one_seasonal_block = as.numeric(SeasonalCount > 0),
     .groups = 'drop'
-  ) |>
+  )
+```
+
+#### Step 6.3: Add year period labels and arrange
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
+# Add year period labels and arrange results
+yearly_summary <- yearly_summary |>
   dplyr::mutate(
     year_period = paste0(
       "(Jan ", Year, "-Apr ", Year, ", Dec ", Year, "-Mar ", Year + 1, ")"
@@ -462,7 +516,16 @@ yearly_summary <- detailed_results |>
     at_least_one_seasonal_block
   ) |>
   dplyr::arrange(Year, dplyr::across(dplyr::all_of(admin_columns)))
+```
 
+#### Step 6.4: Save and preview yearly summary
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: false
+#| code-fold: false
+#| code-summary: "Show the code"
 # Save results
 writexl::write_xlsx(yearly_summary, yearly_output)
 
@@ -472,46 +535,15 @@ knitr::kable(
   caption = "Yearly Seasonality Summary (Last 10 rows)"
 )
 ```
-
-
 ::: {.callout-note title="Output" icon="false"}
 ```{R}
 #| message: false
 #| echo: false
 #| eval: true
-# Extract start year from DateRange
-detailed_results$StartYear <- sapply(detailed_results$DateRange, function(x) {
-  parts <- strsplit(x, "-")[[1]]
-  first_part <- trimws(parts[1])
-  as.numeric(substr(first_part, nchar(first_part) - 3, nchar(first_part)))
-})
-
-# Group by administrative columns and year
-yearly_summary <- detailed_results |>
-  dplyr::group_by(dplyr::across(dplyr::all_of(admin_columns)), StartYear) |>
-  dplyr::summarise(
-    Year = dplyr::first(StartYear),
-    SeasonalCount = sum(Seasonal, na.rm = TRUE),
-    total_blocks_in_year = 12,
-    at_least_one_seasonal_block = as.numeric(SeasonalCount > 0),
-    .groups = 'drop'
-  ) |>
-  dplyr::mutate(
-    year_period = paste0(
-      "(Jan ", Year, "-Apr ", Year, ", Dec ", Year, "-Mar ", Year + 1, ")"
-    )
-  ) |>
-  dplyr::select(
-    Year, 
-    dplyr::all_of(admin_columns), 
-    year_period, 
-    total_blocks_in_year, 
-    at_least_one_seasonal_block
-  ) |>
-  dplyr::arrange(Year, dplyr::across(dplyr::all_of(admin_columns)))
-
+#| code-fold: false
+#| code-summary: "Show the code"
 # Save results
-writexl::write_xlsx(yearly_summary, yearly_output)
+#writexl::write_xlsx(yearly_summary, yearly_output)
 
 # Display results
 knitr::kable(
@@ -519,20 +551,19 @@ knitr::kable(
   caption = "Yearly Seasonality Summary (Last 10 rows)"
 )
 ```
-
-
 :::
-
 **To adapt the code:**
 
-- Do not change anything in the code 
+* Do not change anything in the code
 
 ### Step 7: Location-level seasonality classification
 
+#### Step 7.1: Summarize across years by location
+
 ```{R}
 #| message: false
 #| echo: true
-#| eval: false
+#| eval: true
 #| code-fold: false
 #| code-summary: "Show the code"
 # Group by all administrative columns and calculate seasonality classification
@@ -542,40 +573,20 @@ location_summary <- yearly_summary |>
     SeasonalYears = sum(at_least_one_seasonal_block, na.rm = TRUE),
     TotalYears = dplyr::n(),
     .groups = 'drop'
-  ) |>
-  dplyr::mutate(
-    Seasonality = ifelse(
-      SeasonalYears == TotalYears, 
-      "Seasonal", 
-      "Not Seasonal"
-    )
-  ) |>
-  dplyr::arrange(dplyr::across(dplyr::all_of(admin_columns)))
-
-# Save results
-writexl::write_xlsx(location_summary, location_output)
-
-# Display results
-knitr::kable(
-  head(location_summary, 10), 
-  caption = "Location Seasonality Classification"
-)
+  )
 ```
 
-::: {.callout-note title="Output" icon="false"}
+
+#### Step 7.2: Classify seasonality status
 
 ```{R}
 #| message: false
-#| echo: false
+#| echo: true
 #| eval: true
-# Group by all administrative columns and calculate seasonality classification
-location_summary <- yearly_summary |>
-  dplyr::group_by(dplyr::across(dplyr::all_of(admin_columns))) |>
-  dplyr::summarise(
-    SeasonalYears = sum(at_least_one_seasonal_block, na.rm = TRUE),
-    TotalYears = dplyr::n(),
-    .groups = 'drop'
-  ) |>
+#| code-fold: false
+#| code-summary: "Show the code"
+# Classify as Seasonal or Not Seasonal
+location_summary <- location_summary |>
   dplyr::mutate(
     Seasonality = ifelse(
       SeasonalYears == TotalYears, 
@@ -584,9 +595,18 @@ location_summary <- yearly_summary |>
     )
   ) |>
   dplyr::arrange(dplyr::across(dplyr::all_of(admin_columns)))
+```
 
+#### Step 7.3: Save and preview location classification
+
+```{R}
+#| message: false
+#| echo: true
+#| eval: true
+#| code-fold: false
+#| code-summary: "Show the code"
 # Save results
-writexl::write_xlsx(location_summary, location_output)
+#writexl::write_xlsx(location_summary, location_output)
 
 # Display results
 knitr::kable(
@@ -595,4 +615,8 @@ knitr::kable(
 )
 ```
 
-:::
+**To adapt the code:**
+
+* Do not change anything in the code
+
+
