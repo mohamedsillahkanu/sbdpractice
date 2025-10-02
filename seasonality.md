@@ -22,7 +22,7 @@ In malaria-endemic regions, cases often cluster during specific months when cond
 
 ## Defining Seasonality
 
-**For this analysis, seasonality refers to transmission patterns where a significant portion of annual malaria burden occurs within a concentrated timeframe.**
+**Seasonality refers to transmission patterns where a significant portion of annual malaria burden occurs within a concentrated timeframe.**
 
 Following **WHO recommendations**, a region exhibits seasonal transmission when:
 
@@ -418,7 +418,7 @@ for (admin_unit in admin_groups) {
 ```
 **To adapt the code:**
 
-* Do not change anything in the code
+- Do not change anything in the code
 
 #### Step 5.7: Save and preview results
 
@@ -547,6 +547,7 @@ knitr::kable(
 )
 ```
 :::
+
 **To adapt the code:**
 
 * Do not change anything in the code
@@ -597,6 +598,24 @@ location_summary <- location_summary |>
 ```{R}
 #| message: false
 #| echo: true
+#| eval: false
+#| code-fold: false
+#| code-summary: "Show the code"
+# Save results
+#writexl::write_xlsx(location_summary, location_output)
+
+# Display results
+knitr::kable(
+  head(location_summary, 10), 
+  caption = "Location Seasonality Classification"
+)
+```
+
+::: {.callout-note title="Output" icon="false"}
+
+```{R}
+#| message: false
+#| echo: true
 #| eval: true
 #| code-fold: false
 #| code-summary: "Show the code"
@@ -609,6 +628,8 @@ knitr::kable(
   caption = "Location Seasonality Classification"
 )
 ```
+:::
+
 
 **To adapt the code:**
 
