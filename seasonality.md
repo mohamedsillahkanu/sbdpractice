@@ -37,7 +37,7 @@ This analysis utilizes **CHIRPS satellite-derived rainfall data** as a proxy for
 
 **Data Source**: Rainfall datasets can be obtained following the procedures outlined in the [CHIRPS data extraction guide](https://ahadi-analytics.github.io/snt-code-library/english/library/data/climate/extract_raster_climate.html).
 
-## Profiling for SMC
+## Profiling for Seasonality
 
 ![Profiling seasonality for SMC targeting](https://github.com/mohamedsillahkanu/snt-package/raw/7aca50c7688bbc679b33f5543150078c978c7edf/seasonality_eligibility_v2.png)
 
@@ -264,11 +264,7 @@ for (i in 1:total_num_blocks) {
 **To adapt the code:**
 
 * Do not change anything in the code
-
-**To adapt the code:**
-
-- Do not change anything in the code 
-
+ 
 ### Step 5: Calculate seasonality for each block
 ### Step 5: Calculate seasonality for each block
 
@@ -291,7 +287,6 @@ admin_groups <- unique(filtered_data$admin_group)
 **To adapt the code:**
 
 * Do not change anything in the code
-
 
 #### Step 5.2: Loop through administrative units
 
